@@ -62,6 +62,9 @@ Spawns N headless clients that register, connect, move, and report who they see:
 # 5 bots wander 30s
 ./tools/mp_sim.sh -n 5 --scenario wander --seconds 30
 
+# AOI: bots split then re-enter visibility range
+./tools/mp_sim.sh -n 2 --scenario aoi --seconds 45
+
 # interactive control
 ./tools/mp_sim.sh -n 2 -i
 ```

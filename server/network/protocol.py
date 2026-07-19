@@ -26,6 +26,7 @@ class ServerMessageType(StrEnum):
     PLAYER_MOVED = "player_moved"
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"
+    PLAYER_UPDATE = "player_update"
     COMBAT_START = "combat_start"
     COMBAT_RESUME = "combat_resume"
     COMBAT_UPDATE = "combat_update"

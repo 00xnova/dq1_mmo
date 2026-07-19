@@ -323,6 +323,48 @@ async def scenario_wander(bots: list[Bot], seconds: float) -> None:
     _print_visibility_report(bots)
 
 
+async def scenario_aoi(bots: list[Bot], seconds: float = 40.0) -> None:
+    """Bot0 stays in town; Bot1 walks from far field into range — must get joins."""
+    if len(bots) < 2:
+        print("AOI needs at least 2 bots")
+        return
+    print(f"\n=== AOI enter-range test ({len(bots)} bots) ===\n")
+    a, b = bots[0], bots[1]
+    # Park A at town
+    for _ in range(40):
+        if a.x == 3 and a.y == 3:
+            break
+        await a.go_toward(3, 3)
+        await asyncio.sleep(0.12)
+    # Send B toward dungeon edge (far), then back to A
+    far = (14, 8)
+    for _ in range(80):
+        if b.in_combat:
+            await b.fight_if_needed()
+        elif await b.go_toward(*far):
+            break
+        await asyncio.sleep(0.12)
+    await asyncio.sleep(0.3)
+    print(f"  After split: A@({a.x},{a.y}) sees {len(a.nearby)} | B@({b.x},{b.y}) sees {len(b.nearby)}")
+    # Walk B back to A
+    end = time.time() + seconds
+    saw_join = False
+    while time.time() < end:
+        if b.in_combat:
+            await b.fight_if_needed()
+        else:
+            await b.go_toward(a.x, a.y)
+        if a.char_id in b.nearby and b.char_id in a.nearby:
+            saw_join = True
+            print(f"\n*** AOI SUCCESS: mutual visibility at A({a.x},{a.y}) B({b.x},{b.y}) ***\n")
+            break
+        await asyncio.sleep(0.14)
+        _print_snapshot(bots)
+    if not saw_join:
+        print("\n*** AOI FAIL: never gained mutual visibility ***\n")
+    _print_visibility_report(bots[:2])
+
+
 async def scenario_meet(bots: list[Bot], seconds: float = 25.0) -> None:
     """All bots path toward town square (3,3) so they must see each other."""
     print(f"\n=== MEET at town (3,3) — {len(bots)} bots ===\n")
@@ -485,6 +527,8 @@ async def amain(args: argparse.Namespace) -> int:
             await scenario_interactive(bots)
         elif args.scenario == "meet":
             await scenario_meet(bots, args.seconds)
+        elif args.scenario == "aoi":
+            await scenario_aoi(bots, args.seconds)
         else:
             await scenario_wander(bots, args.seconds)
     finally:
@@ -500,9 +544,9 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--seconds", type=float, default=20.0, help="duration for auto scenarios")
     p.add_argument(
         "--scenario",
-        choices=("wander", "meet"),
+        choices=("wander", "meet", "aoi"),
         default="meet",
-        help="auto scenario (default: meet)",
+        help="auto scenario: meet | wander | aoi (default: meet)",
     )
     p.add_argument("-i", "--interactive", action="store_true", help="interactive command prompt")
     p.add_argument("--http", default="http://127.0.0.1:8000", help="HTTP base URL")

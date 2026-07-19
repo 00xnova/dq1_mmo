@@ -298,10 +298,14 @@ async def handle_message(
                         new_stats=e.get("stats"),
                     )
                 )
+                if e.get("level") is not None:
+                    await manager.publish_level(character_id, int(e["level"]))
 
         if battle.outcome != "ongoing":
             char = await _persist_battle_end(character_id, battle)
             combat_engine.end(character_id)
+            if char.get("level"):
+                manager.set_level(character_id, int(char["level"]))
             outbound.append(
                 msg(
                     ServerMessageType.COMBAT_END,
@@ -313,12 +317,19 @@ async def handle_message(
                 )
             )
             if battle.outcome == "defeat":
+                # Respawn in town with AOI refresh
+                aoi_msgs = await manager.publish_move(
+                    character_id, SPAWN_X, SPAWN_Y, seq=None
+                )
+                outbound.extend(aoi_msgs)
                 outbound.append(
                     msg(
-                        ServerMessageType.PLAYER_MOVED,
-                        player_id=character_id,
+                        ServerMessageType.MOVE_OK,
+                        ok=True,
                         x=SPAWN_X,
                         y=SPAWN_Y,
+                        seq=None,
+                        reason="respawn",
                     )
                 )
         return character_id, user_id, outbound, None
@@ -399,26 +410,14 @@ async def handle_message(
             _reject("blocked", fx, fy)
             return character_id, user_id, outbound, None
 
-        # Apply in memory; background task flushes to SQLite
-        manager.set_position(character_id, tx, ty, seq=seq)
-
+        # Apply position + AOI (enter/leave range notifications)
+        aoi_msgs = await manager.publish_move(character_id, tx, ty, seq=seq)
         outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
-        meta_now = manager.get_meta(character_id) or {}
-        move_msg = msg(
-            ServerMessageType.PLAYER_MOVED,
-            player_id=character_id,
-            x=tx,
-            y=ty,
-            seq=seq,
-            name=meta_now.get("name"),
-            level=meta_now.get("level"),
-        )
-        await manager.broadcast_nearby(character_id, move_msg, include_self=False)
+        outbound.extend(aoi_msgs)
 
         # Random encounter
         enemy_id = roll_encounter(tx, ty, Rng())
         if enemy_id:
-            # Force position flush before combat so reconnect is consistent
             async with db_write() as db:
                 await db.execute(
                     "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",

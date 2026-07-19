@@ -109,7 +109,7 @@ async def websocket_endpoint(websocket: WebSocket):
             if connect_meta is not None:
                 from game.world_manager import map_payload
 
-                await manager.connect(
+                peers = await manager.connect(
                     connect_meta["character_id"],
                     websocket,
                     name=connect_meta["name"],
@@ -119,31 +119,28 @@ async def websocket_endpoint(websocket: WebSocket):
                     level=connect_meta["level"],
                 )
 
-                # Drop any placeholder world_state from handler; rebuild after connect
+                # Drop placeholder world_state from handler
                 outbound = [
                     o for o in outbound if o.get("type") != ServerMessageType.WORLD_STATE
                 ]
 
-                # Tell others first so they can show us
-                await manager.broadcast_nearby(
-                    connect_meta["character_id"],
-                    msg(
-                        ServerMessageType.PLAYER_JOINED,
-                        player_id=connect_meta["character_id"],
-                        name=connect_meta["name"],
-                        x=connect_meta["x"],
-                        y=connect_meta["y"],
-                        level=connect_meta["level"],
-                    ),
-                    include_self=False,
+                # Notify peers that can see us (AOI already linked in connect)
+                join_payload = msg(
+                    ServerMessageType.PLAYER_JOINED,
+                    player_id=connect_meta["character_id"],
+                    name=connect_meta["name"],
+                    x=connect_meta["x"],
+                    y=connect_meta["y"],
+                    level=connect_meta["level"],
                 )
+                for p in peers:
+                    await manager.send(p["id"], join_payload)
 
-                # Authoritative presence snapshot for the connecting client
-                nearby = manager.nearby_players(connect_meta["character_id"])
+                # Full snapshot for joining client
                 outbound.append(
                     msg(
                         ServerMessageType.WORLD_STATE,
-                        players=nearby,
+                        players=peers,
                         enemies=[],
                         map=map_payload(),
                         you={"x": connect_meta["x"], "y": connect_meta["y"]},
@@ -159,15 +156,8 @@ async def websocket_endpoint(websocket: WebSocket):
     finally:
         if character_id is not None and manager.owns(character_id, websocket):
             await handle_disconnect(character_id)
-            left = await manager.disconnect(character_id, websocket)
-            if left is not None:
-                await manager.broadcast(
-                    msg(
-                        ServerMessageType.PLAYER_LEFT,
-                        player_id=character_id,
-                        name=left.get("name"),
-                    )
-                )
+            # disconnect notifies AOI peers with player_left
+            await manager.disconnect(character_id, websocket)
 
 
 if __name__ == "__main__":

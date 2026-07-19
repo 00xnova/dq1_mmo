@@ -118,23 +118,48 @@ local function bind_handlers(self)
   end)
 
   Network.on("player_joined", function(data)
-    World.players[data.player_id] = {
-      id = data.player_id,
-      name = data.name or ("P" .. tostring(data.player_id)),
+    local id = data.player_id
+    local existing = World.players[id]
+    World.players[id] = {
+      id = id,
+      name = data.name or (existing and existing.name) or ("P" .. tostring(id)),
       x = math.floor(data.x or 0),
       y = math.floor(data.y or 0),
       tx = math.floor(data.x or 0),
       ty = math.floor(data.y or 0),
-      level = data.level or 1,
+      level = data.level or (existing and existing.level) or 1,
     }
-    UI.toast((data.name or "Hero") .. " appeared nearby", "join")
+    if not existing then
+      UI.toast((data.name or "Hero") .. " appeared nearby", "join")
+    end
   end)
 
   Network.on("player_left", function(data)
     local p = World.players[data.player_id]
-    local name = p and p.name or ("#" .. tostring(data.player_id))
+    local name = data.name or (p and p.name) or ("#" .. tostring(data.player_id))
     World.remove_player(data.player_id)
-    UI.toast(name .. " left the area", "leave")
+    if data.reason == "out_of_range" then
+      -- quiet — walking out of range is normal
+    else
+      UI.toast(name .. " left the area", "leave")
+    end
+  end)
+
+  Network.on("player_update", function(data)
+    local p = World.players[data.player_id]
+    if not p then
+      return
+    end
+    if data.name then
+      p.name = data.name
+    end
+    if data.level then
+      p.level = data.level
+    end
+    if data.x and data.y then
+      p.tx = data.x
+      p.ty = data.y
+    end
   end)
 
   Network.on("combat_start", function(data)
