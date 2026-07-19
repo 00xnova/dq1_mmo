@@ -10,8 +10,8 @@
 | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) | Artists | PNG names & licenses |
 | [../plan.md](../plan.md) | Historical only | Original roadmap — **not** live source of truth |
 
-**Last docs refresh:** **v0.5.15** (2026-07-19)  
-Look/examine · online pulse debounce · field-spell combat guard · **90** tests · multiplayer reliability.
+**Last docs refresh:** **v0.5.19** (2026-07-19)  
+Zone chat (`/z`) · AOI rebuild on sync · whisper by id · Kenney + SVG art · **103** tests · protocol only in AGENTS.md.
 
 ---
 
@@ -19,17 +19,32 @@ Look/examine · online pulse debounce · field-spell combat guard · **90** test
 
 | Do | Don’t |
 |:---|:------|
-| Put install & controls in README / HUMAN | Dump full WS protocol tables into README |
+| Put install & controls in README / HUMAN | Dump full WS protocol tables into README or HUMAN |
 | Put protocol, tests, agent constraints in `AGENTS.md` | Put “how to install Love2D for players” only in AGENTS |
 | Treat `plan.md` as history | Treat `plan.md` as the current backlog |
-| Bump `VERSION` in `server/config.py` with user-visible changes | Leave README / HUMAN version out of date |
+| Bump `VERSION` in `server/config.py` with user-visible changes | Leave README / HUMAN version badges out of date |
+| Link across audiences (README → HUMAN / AGENTS) | Mix long agent protocol into human prose |
+| Keep chat slash-commands (`/w`, `/z`) accurate in HUMAN | Claim client features that only exist on the server |
 
 ### Quick map
 
 ```text
 Humans  ──►  README.md  +  docs/HUMAN.md
-Agents  ──►  AGENTS.md   (protocol + tests + hot paths)
+Agents  ──►  AGENTS.md   (protocol + tests + hot paths ONLY)
 Art     ──►  client/assets/ATTRIBUTION.md
+History ──►  plan.md     (outdated; do not treat as backlog)
+```
+
+```text
+┌─────────────────┐              ┌──────────────────┐
+│     Humans      │              │  Agents / LLMs   │
+└────────┬────────┘              └────────┬─────────┘
+         │                                │
+         ▼                                ▼
+    README.md                         AGENTS.md
+    docs/HUMAN.md                     · WebSocket catalog
+                                      · reliability rules
+                                      · test matrix
 ```
 
 ---
@@ -39,7 +54,7 @@ Art     ──►  client/assets/ATTRIBUTION.md
 Checklist for contributors (human or agent):
 
 - [ ] `server/config.py` → `VERSION`
-- [ ] [README.md](../README.md) version badge / features / controls
+- [ ] [README.md](../README.md) version badge · features · controls · test count
 - [ ] [HUMAN.md](HUMAN.md) gameplay if player-facing
 - [ ] [AGENTS.md](../AGENTS.md) protocol / tests / reliability if agent-facing
 - [ ] This index “last refresh” line

@@ -172,6 +172,9 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         manager.touch(character_id)
+        # Repair AOI drift so peers re-appear after desync / reconnect storms
+        aoi_msgs = await manager.rebuild_aoi(character_id)
+        outbound.extend(aoi_msgs)
         meta = manager.get_meta(character_id)
         nearby = manager.nearby_players(character_id)
         outbound.append(
@@ -184,6 +187,7 @@ async def handle_message(
                 you={"x": meta["x"], "y": meta["y"]} if meta else None,
                 repel=manager.repel_remaining(character_id),
                 radiant=manager.radiant_remaining(character_id),
+                zone=zone_at(int(meta["x"]), int(meta["y"])) if meta else None,
             )
         )
         return character_id, user_id, outbound, None
@@ -195,6 +199,12 @@ async def handle_message(
         manager.touch(character_id)
         meta = manager.get_meta(character_id)
         nearby = manager.nearby_players(character_id)
+        you_zone = None
+        if meta is not None:
+            try:
+                you_zone = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                you_zone = None
         outbound.append(
             msg(
                 ServerMessageType.WHO,
@@ -209,6 +219,7 @@ async def handle_message(
                     "in_combat": bool(meta.get("in_combat")) if meta else False,
                     "repel": manager.repel_remaining(character_id),
                     "radiant": manager.radiant_remaining(character_id),
+                    "zone": you_zone,
                 },
             )
         )
@@ -351,6 +362,37 @@ async def handle_message(
     if character_id is None:
         outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
         return character_id, user_id, outbound, None
+
+    # Drop ghost sessions if the hero row was deleted while still connected
+    _needs_char = msg_type in (
+        ClientMessageType.MOVE,
+        ClientMessageType.ATTACK,
+        ClientMessageType.FLEE,
+        ClientMessageType.USE_SPELL,
+        ClientMessageType.USE_ITEM,
+        ClientMessageType.EQUIP,
+        ClientMessageType.UNEQUIP,
+        ClientMessageType.BUY,
+        ClientMessageType.SELL,
+        ClientMessageType.REST,
+        ClientMessageType.SHOP,
+        ClientMessageType.INVENTORY,
+        "use_spell",
+        "use_item",
+        "rest",
+        "inn",
+        "debug_encounter",
+        "combat_action",
+    )
+    if _needs_char:
+        _alive = await get_character(character_id)
+        if _alive is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            try:
+                await manager.disconnect(character_id)
+            except Exception:
+                pass
+            return character_id, user_id, outbound, None
 
     # --- Field magic (overworld) ---
     if msg_type in (ClientMessageType.USE_SPELL, "use_spell") and not combat_engine.is_in_combat(
@@ -590,6 +632,24 @@ async def handle_message(
             seq = int(seq)
         if not isinstance(seq, int):
             seq = None
+        # Reject non-positive seq (client always starts at 1; negatives used to
+        # trip the duplicate path because last_move_seq defaults to 0).
+        if seq is not None and (isinstance(seq, bool) or seq < 1):
+            # bool is a subclass of int in Python — reject True/False too
+            meta = manager.get_meta(character_id)
+            mx = int(meta["x"]) if meta else 0
+            my = int(meta["y"]) if meta else 0
+            outbound.append(
+                msg(
+                    ServerMessageType.MOVE_OK,
+                    ok=False,
+                    x=mx,
+                    y=my,
+                    seq=seq if not isinstance(seq, bool) else None,
+                    reason="invalid seq",
+                )
+            )
+            return character_id, user_id, outbound, None
 
         def _reject(reason: str, mx: int, my: int) -> None:
             outbound.append(
@@ -705,14 +765,21 @@ async def handle_message(
 
         return character_id, user_id, outbound, None
 
-    # --- Whisper / tell (private, by online character name) ---
+    # --- Whisper / tell (private, by name or player_id) ---
     if msg_type in (ClientMessageType.WHISPER, ClientMessageType.TELL, "whisper", "tell"):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="empty chat"))
             return character_id, user_id, outbound, None
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        if not isinstance(target_name, str) or not target_name.strip():
+        target_id = manager.find_id_by_player_id(
+            data.get("to_id") or data.get("player_id") or data.get("id")
+        )
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            target_id = manager.find_id_by_name(target_name)
+        if target_id is None and not (
+            isinstance(target_name, str) and target_name.strip()
+        ) and data.get("to_id") is None and data.get("player_id") is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
             return character_id, user_id, outbound, None
         allowed, retry = manager.allow_chat(character_id)
@@ -725,7 +792,6 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
-        target_id = manager.find_id_by_name(target_name)
         if target_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
@@ -735,7 +801,9 @@ async def handle_message(
         meta = manager.get_meta(character_id)
         tmeta = manager.get_meta(target_id)
         name = (meta or {}).get("name") or "Hero"
-        tname = (tmeta or {}).get("name") or target_name.strip()
+        tname = (tmeta or {}).get("name") or (
+            target_name.strip() if isinstance(target_name, str) else "Hero"
+        )
         whisper_msg = msg(
             ServerMessageType.CHAT,
             player_id=character_id,
@@ -750,7 +818,7 @@ async def handle_message(
         outbound.append(whisper_msg)
         return character_id, user_id, outbound, None
 
-    # --- Chat: global (`chat`) or nearby AOI (`say`) ---
+    # --- Chat: global / nearby AOI / zone (`say` defaults nearby) ---
     if msg_type in (ClientMessageType.CHAT, ClientMessageType.SAY, "chat", "say"):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
@@ -770,20 +838,28 @@ async def handle_message(
         name = (meta or {}).get("name") or "Hero"
         # Explicit channel wins; `say` defaults nearby, `chat` defaults global
         channel = (data.get("channel") or "").lower()
-        if channel not in ("global", "nearby", "local", "whisper"):
+        if channel not in ("global", "nearby", "local", "whisper", "zone", "area"):
             if msg_type in (ClientMessageType.SAY, "say"):
                 channel = "nearby"
             else:
                 channel = "global"
         if channel == "local":
             channel = "nearby"
-        # chat with channel=whisper and `to` name → private path
+        if channel == "area":
+            channel = "zone"
+        # chat with channel=whisper and `to` name/id → private path
         if channel == "whisper":
             target_name = data.get("to") or data.get("name") or data.get("target")
-            if not isinstance(target_name, str) or not target_name.strip():
+            target_id = manager.find_id_by_player_id(
+                data.get("to_id") or data.get("player_id") or data.get("id")
+            )
+            if target_id is None and isinstance(target_name, str) and target_name.strip():
+                target_id = manager.find_id_by_name(target_name)
+            if target_id is None and not (
+                isinstance(target_name, str) and target_name.strip()
+            ):
                 outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
                 return character_id, user_id, outbound, None
-            target_id = manager.find_id_by_name(target_name)
             if target_id is None:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
@@ -791,7 +867,9 @@ async def handle_message(
                 outbound.append(msg(ServerMessageType.ERROR, reason="cannot whisper yourself"))
                 return character_id, user_id, outbound, None
             tmeta = manager.get_meta(target_id)
-            tname = (tmeta or {}).get("name") or target_name.strip()
+            tname = (tmeta or {}).get("name") or (
+                target_name.strip() if isinstance(target_name, str) else "Hero"
+            )
             whisper_msg = msg(
                 ServerMessageType.CHAT,
                 player_id=character_id,
@@ -804,15 +882,24 @@ async def handle_message(
             await manager.send(target_id, whisper_msg)
             outbound.append(whisper_msg)
             return character_id, user_id, outbound, None
+        zone_name = None
+        if meta is not None:
+            try:
+                zone_name = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                zone_name = None
         chat_msg = msg(
             ServerMessageType.CHAT,
             player_id=character_id,
             name=name,
             text=text,
             channel=channel,
+            zone=zone_name if channel == "zone" else None,
         )
         if channel == "nearby":
             await manager.broadcast_nearby(character_id, chat_msg, include_self=True)
+        elif channel == "zone":
+            await manager.broadcast_zone(character_id, chat_msg, include_self=True)
         else:
             await manager.broadcast(chat_msg)
         return character_id, user_id, outbound, None

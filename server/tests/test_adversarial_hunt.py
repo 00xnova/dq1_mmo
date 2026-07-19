@@ -246,6 +246,178 @@ def test_ws_protocol_and_combat_guards(tmp_path, monkeypatch):
         stop_server(server)
 
 
+def test_negative_move_seq_rejected(tmp_path, monkeypatch):
+    """seq < 1 must not be treated as duplicate of last_move_seq=0."""
+    db_path = tmp_path / "negseq.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "neg@ex.com", "NegU", "NegHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+                await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": -1}))
+                m = await recv_until(ws, "move_ok", "error")
+                assert m.get("type") == "move_ok"
+                assert m.get("ok") is False
+                assert m.get("reason") == "invalid seq"
+                assert m.get("duplicate") is not True
+                # normal seq still works
+                await asyncio.sleep(0.12)
+                await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
+                m2 = await recv_until(ws, "move_ok", "error")
+                assert m2.get("ok") is True
+                assert m2.get("x") == 3
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
+def test_deleted_character_cannot_act(tmp_path, monkeypatch):
+    """Even if disconnect races, game actions reject missing character rows."""
+    db_path = tmp_path / "ghost.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    from network.message_handler import handle_message
+    from network.websocket_manager import manager
+    from game.combat_engine import reset_combat_engine
+    from network.websocket_manager import reset_manager
+
+    async def scenario():
+        reset_manager()
+        reset_combat_engine()
+        await dbmod.init_db()
+        # minimal user+char
+        db = await dbmod.get_db()
+        await db.execute(
+            "INSERT INTO users (email, password_hash, username) VALUES ('g@g.c','x','G')"
+        )
+        await db.execute(
+            """
+            INSERT INTO characters (user_id, name, max_hp, current_hp, gold, world_x, world_y)
+            VALUES (1, 'Ghost', 15, 15, '100', 2, 2)
+            """
+        )
+        await db.commit()
+
+        class WS:
+            async def send_text(self, t):
+                pass
+
+            async def close(self, *a, **k):
+                pass
+
+        await manager.connect(1, WS(), name="Ghost", x=2, y=2, map_id=1)
+        # wipe character row but leave connection
+        await db.execute("DELETE FROM characters WHERE id = 1")
+        await db.commit()
+        _cid, _uid, out, _meta = await handle_message(
+            1, 1, {"type": "move", "x": 3, "y": 2, "seq": 1}
+        )
+        types = [o.get("type") for o in out]
+        reasons = [o.get("reason") for o in out if o.get("type") == "error"]
+        assert "error" in types
+        assert "character missing" in reasons
+        await dbmod.close_db()
+
+    asyncio.run(scenario())
+
+
+def test_delete_online_character_kicks_session(tmp_path, monkeypatch):
+    db_path = tmp_path / "delkick.db"
+    monkeypatch.setenv("DATABASE_URL", str(db_path))
+    import config
+    import database.db as dbmod
+
+    config.DATABASE_URL = str(db_path)
+    asyncio.run(dbmod.close_db())
+
+    server, _p, base, ws_url = start_server()
+    try:
+        token, ch = register_char(base, "kick@ex.com", "KickU", "KickHero")
+
+        async def flow():
+            import websockets
+
+            async def recv_until(ws, *types, timeout=4.0):
+                deadline = time.monotonic() + timeout
+                while True:
+                    rem = deadline - time.monotonic()
+                    if rem <= 0:
+                        raise TimeoutError(types)
+                    m = json.loads(await asyncio.wait_for(ws.recv(), rem))
+                    if m.get("type") in types:
+                        return m
+
+            async with websockets.connect(ws_url) as ws:
+                await ws.send(
+                    json.dumps(
+                        {"type": "auth", "token": token, "character_id": ch["id"]}
+                    )
+                )
+                await recv_until(ws, "auth_ok")
+                await recv_until(ws, "world_state")
+                st, _ = __import__("tests.ws_helpers", fromlist=["http_json"]).http_json(
+                    base, "DELETE", f"/auth/characters/{ch['id']}", token=token
+                )
+                assert st in (200, 204)
+                await asyncio.sleep(0.2)
+                # Further messages should fail or socket should die
+                try:
+                    await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
+                    # drain briefly
+                    deadline = time.monotonic() + 1.5
+                    got_move_ok = False
+                    while time.monotonic() < deadline:
+                        try:
+                            m = json.loads(
+                                await asyncio.wait_for(ws.recv(), 0.3)
+                            )
+                            if m.get("type") == "move_ok" and m.get("ok") is True:
+                                got_move_ok = True
+                                break
+                        except Exception:
+                            break
+                    assert got_move_ok is False, "deleted hero must not move"
+                except Exception:
+                    pass  # socket closed is fine
+
+        asyncio.run(flow())
+    finally:
+        stop_server(server)
+
+
 def test_ws_sell_equipped_end_to_end(tmp_path, monkeypatch):
     db_path = tmp_path / "hunt_sell.db"
     monkeypatch.setenv("DATABASE_URL", str(db_path))

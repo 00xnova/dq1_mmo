@@ -173,6 +173,12 @@ async def websocket_endpoint(websocket: WebSocket):
                         radiant=manager.radiant_remaining(connect_meta["character_id"]),
                     )
                 )
+                # Stamp session id on auth_ok for reconnect hygiene
+                sid = manager.session_id(connect_meta["character_id"])
+                for o in outbound:
+                    if o.get("type") == ServerMessageType.AUTH_OK:
+                        o["session_id"] = sid
+                        o["online"] = len(manager.online_ids())
 
             # Deliver auth_ok / world_state / combat_resume BEFORE any global pulse so
             # clients always see auth_ok as the first post-auth message (not `online`).

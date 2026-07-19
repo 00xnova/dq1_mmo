@@ -1,27 +1,41 @@
 # Art assets
 
-Drop replacement PNGs into the folders below any time. Names matter for auto-load.
-Missing files fall back to procedural drawing in the client.
+Drop replacement PNGs into the folders below any time. **File names are the contract** for auto-load.
+Missing files fall back to procedural drawing in the Love2D client.
+
+These are **not** official Dragon Quest art. Swap freely.
 
 ## Current set
 
 | Path | Source | License |
 |------|--------|---------|
-| `tiles/*.png` | [Kenney](https://kenney.nl) **Tiny Town**, **Tiny Dungeon**, **RPG Urban Pack** (scaled 16→40) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
-| `sprites/heroes/*.png` | Kenney **Tiny Dungeon** characters (scaled 16→40/80) | CC0 |
+| `tiles/*.png` | [Kenney](https://kenney.nl) **Tiny Town**, **Tiny Dungeon**, **RPG Urban Pack**, **Roguelike RPG Pack** (16→40 nearest) | [CC0](https://creativecommons.org/publicdomain/zero/1.0/) |
+| `sprites/heroes/*.png` | Kenney **Tiny Dungeon** characters (16→40/80) | CC0 |
 | `ui/icon_sword.png` | Kenney **Tiny Dungeon** | CC0 |
-| `src/kenney/*.png` | 16×16 source crops used to regenerate game-size PNGs | CC0 |
-| `sprites/enemies/*.png` | Converted from [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) demo SVGs | Project assets (replace freely) |
-| `svg/` | Simple SVG placeholders (optional regen path) | Project |
+| `src/kenney/*.png` | 16×16 masters used to regenerate game-size PNGs | CC0 |
+| `sprites/enemies/*.png` (26) | Kenney **Tiny Dungeon** monsters/characters, tinted per enemy id | CC0 |
+| `sprites/enemies/*.png` (14) | Project SVG placeholders (`svg/enemies/`) for dragons, wyverns, etc. | Project (public domain intent) |
+| `svg/` | Tile/hero/enemy SVG sources | Project |
 
-**Credit (optional, appreciated):** [Kenney.nl](https://kenney.nl) — CC0 asset packs.
+**Credit (optional, appreciated):** [Kenney.nl](https://kenney.nl) — Kenney Vleugels, CC0.
 
-These are **not** official Dragon Quest art. Swap in your own sprites whenever you like.
+### Enemy id → art strategy
+
+| Family | Examples | Art |
+|--------|----------|-----|
+| Slimes | `slime`, `red_slime`, `metal_slime` | Kenney slime + color tint |
+| Scorpions | `scorpion`, `metal_scorpion`, `rogue_scorpion` | Kenney crab |
+| Undead | `skeleton`, `ghost`, `wraith`, … | Kenney skull + tint |
+| Beasts | `wolf`, `werewolf`, … | Kenney rat / flesh |
+| Constructs | `golem`, `stoneman`, `goldman` | Kenney flesh + tint |
+| Knights | `knight`, `armored_knight`, … | Kenney knight characters |
+| Casters | `magician`, `wizard`, `warlock` | Kenney mage |
+| Dragons / drakes / wyverns | `blue_dragon`, `drakee`, `wyvern`, … | SVG silhouette placeholders |
 
 ## Replacing art yourself
 
-1. Drop PNGs into the folders below (file names matter).
-2. Prefer **nearest-neighbor** sizes (16/32/40/64 work well).
+1. Drop PNGs into the folders below (names must match).
+2. Prefer **nearest-neighbor** pixel art (16/32/40/64/96).
 3. Restart Love2D (`love client`).
 
 ### Tiles (`tiles/`) — 40×40 recommended
@@ -44,50 +58,50 @@ These are **not** official Dragon Quest art. Swap in your own sprites whenever y
 
 ### Enemies (`sprites/enemies/`)
 
-Name files after enemy **ids** from `shared/dq1_data.json`, e.g.:
+Name files after enemy **ids** from `shared/dq1_data.json` (40 enemies), e.g.:
 
 - `slime.png`, `red_slime.png`, `drakee.png`, `ghost.png`, `skeleton.png`, …
 
-Missing files fall back to a colored blob.
+Missing files fall back to a colored blob in combat UI.
 
 ### UI (`ui/`)
 
 Optional icons; safe to leave as-is.
 
-## Regenerating from vendored Kenney sources
-
-16×16 masters live in `src/kenney/`. Scale them up without re-downloading:
+## Regenerating assets
 
 ```bash
-# from repo root
+# from repo root — uses vendored src/kenney masters + SVG enemies
 ./tools/gen_placeholder_assets.sh
+
+# or full re-import (re-download Kenney CC0 packs)
+python3 tools/import_open_assets.py --download
+
+# if packs already extracted under /tmp/kenney_dl/extracted
+python3 tools/import_open_assets.py --kenney-dir /tmp/kenney_dl/extracted
+
+# only refresh SVG enemies (keep current tiles/heroes)
+python3 tools/import_open_assets.py --svg-only
 ```
 
-Or manually:
+Manual scale example:
 
 ```bash
-# example: 40×40 nearest-neighbor with ImageMagick
 convert client/assets/src/kenney/field.png -filter point -resize 40x40 client/assets/tiles/field.png
 ```
 
-## Optional: re-download Kenney packs (CC0)
-
-```bash
-# Tiny Town, Tiny Dungeon, RPG Urban (URLs from kenney.nl asset pages)
-# Then re-run tools/import_open_assets.py if present, or copy tiles by hand.
-```
-
-Packs used (all CC0):
+## Packs used (all CC0)
 
 - https://kenney.nl/assets/tiny-town  
 - https://kenney.nl/assets/tiny-dungeon  
 - https://kenney.nl/assets/rpg-urban-pack  
 - https://kenney.nl/assets/roguelike-rpg-pack  
 
-## SVG placeholders
+## SVG-only path
+
+If you delete Kenney PNGs and want pure vector placeholders:
 
 ```bash
 rsvg-convert -w 40 -h 40 client/assets/svg/tile_field.svg -o client/assets/tiles/field.png
+rsvg-convert -w 96 -h 96 client/assets/svg/enemies/blue_dragon.svg -o client/assets/sprites/enemies/blue_dragon.png
 ```
-
-Prefer the Kenney PNGs for gameplay; SVGs remain as a license-clean fallback if you delete PNGs and want to redraw simply.

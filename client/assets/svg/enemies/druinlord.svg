@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="druinlord">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/druinlord.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <ellipse cx="64" cy="96" rx="28" ry="10" fill="#362c36" opacity="0.3"/>
+  <ellipse cx="64" cy="72" rx="32" ry="24" fill="#a284a2" stroke="#362c36" stroke-width="3"/>
+  <ellipse cx="64" cy="48" rx="20" ry="16" fill="#a284a2" stroke="#362c36" stroke-width="2"/>
+  <polygon points="48,40 42,24 54,36" fill="#362c36"/>
+  <polygon points="80,40 86,24 74,36" fill="#362c36"/>
+  <ellipse cx="56" cy="48" rx="3" ry="3" fill="#1a1010"/>
+  <ellipse cx="72" cy="48" rx="3" ry="3" fill="#1a1010"/>
+  <rect x="40" y="84" width="10" height="16" fill="#362c36"/>
+  <rect x="78" y="84" width="10" height="16" fill="#362c36"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Druinlord</text>
+</svg>

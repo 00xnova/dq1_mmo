@@ -70,6 +70,16 @@ local function bind_handlers(self)
   Network.on("auth_ok", function(data)
     self.status = "Connected"
     self.locked = false
+    -- Clean multipresence after reconnect (avoid ghost remotes)
+    World.players = {}
+    World.pending = {}
+    self.roster = {}
+    if data.session_id then
+      Session.session_id = data.session_id
+    end
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
     if data.character then
       Session.character = data.character
       World.set_local(data.character)
@@ -81,6 +91,8 @@ local function bind_handlers(self)
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
     UI.toast("Entered the world", "ok")
+    -- Presence snapshot follows as world_state; ask again if reconnect was messy
+    Network.send({ type = "sync" })
   end)
 
   Network.on("combat_resume", function(data)
@@ -618,7 +630,7 @@ function Overworld:draw()
     h - 48,
     w - 24,
     36,
-    "WASD · T/Y chat · E emote · F stats · R inn · H/M magic · O who · I inv · Esc"
+    "WASD · T/Y chat · E emote · F stats · L look · R inn · H/M magic · O who · ? help · Esc"
   )
 
   if self.status and self.status ~= "Connected" then
@@ -638,13 +650,19 @@ function Overworld:keypressed(key)
     elseif key == "return" or key == "kpenter" then
       local text = (self.chat_draft or ""):match("^%s*(.-)%s*$")
       if text and text ~= "" then
-        -- /w Name message  or  /tell Name message
+        -- /w Name message · /tell Name message · /z message (zone)
         local wname, wmsg = text:match("^[/%!]w%s+(%S+)%s+(.+)$")
         if not wname then
           wname, wmsg = text:match("^[/%!]tell%s+(%S+)%s+(.+)$")
         end
+        local zmsg = text:match("^[/%!]z%s+(.+)$")
+        if not zmsg then
+          zmsg = text:match("^[/%!]zone%s+(.+)$")
+        end
         if wname and wmsg then
           Network.whisper(wname, wmsg)
+        elseif zmsg and zmsg ~= "" then
+          Network.chat(zmsg, "zone")
         elseif self.chat_channel == "nearby" then
           Network.say(text)
         else
@@ -804,6 +822,11 @@ function Overworld:keypressed(key)
     UI.toast(msg, "info")
   elseif key == "c" and not self.locked then
     self.show_chat = not self.show_chat
+  elseif (key == "/" or key == "?") and not self.locked then
+    UI.toast(
+      "WASD · T/Y chat · /w whisper · /z zone · E emote · F stats · L look · R inn · H/M · O who · I inv",
+      "info"
+    )
   end
 end
 

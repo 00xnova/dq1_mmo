@@ -90,6 +90,8 @@ function Combat:enter(payload)
   self.selected = 1
   self.waiting = false
   apply_events(self, payload.events)
+  -- Refresh bag so Herb ×N is accurate
+  Network.send({ type = "inventory" })
   rebuild_menu(self)
 
   Network.on("combat_update", function(data)
@@ -241,6 +243,13 @@ function Combat:keypressed(key)
     self:_send({ type = "use_item", item = "herb" })
   elseif key == "escape" then
     self:_send({ type = "flee" })
+  else
+    -- Number keys 1–9 pick menu rows (Attack, Flee, spells, Herb, …)
+    local n = tonumber(key)
+    if n and n >= 1 and n <= 9 and self.menu[n] then
+      self.selected = n
+      self:_send(self.menu[n].action)
+    end
   end
 end
 
@@ -305,7 +314,21 @@ function Combat:draw()
     local emhp = math.max(1, self.enemy.max_hp or 1)
     UI.set_font("small")
     UI.color("danger")
-    love.graphics.print(self.enemy.name or "Enemy", w - 280, 56)
+    local ename = self.enemy.name or "Enemy"
+    local st = self.enemy.status
+    if type(st) == "table" then
+      local tags = {}
+      if st.sleep then
+        tags[#tags + 1] = "SLEEP"
+      end
+      if st.stopspell then
+        tags[#tags + 1] = "MUTE"
+      end
+      if #tags > 0 then
+        ename = ename .. "  [" .. table.concat(tags, ",") .. "]"
+      end
+    end
+    love.graphics.print(ename, w - 280, 56)
     UI.bar(w - 280, 80, 220, 14, ehp / emhp, "hp", string.format("%d / %d", ehp, emhp))
   end
 

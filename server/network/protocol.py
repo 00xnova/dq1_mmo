@@ -18,9 +18,9 @@ class ClientMessageType(StrEnum):
     REST = "rest"  # town inn — restore HP/MP for gold
     PING = "ping"
     SYNC = "sync"  # request full presence snapshot
-    CHAT = "chat"  # global chat (or channel=nearby|global)
+    CHAT = "chat"  # global chat (or channel=nearby|global|zone|whisper)
     SAY = "say"  # nearby (AOI) chat
-    WHISPER = "whisper"  # private message to one online player
+    WHISPER = "whisper"  # private message (name or to_id/player_id)
     TELL = "tell"  # alias for whisper
     EMOTE = "emote"  # social emote to nearby players
     WHO = "who"  # lightweight online/nearby query

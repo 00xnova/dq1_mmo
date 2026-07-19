@@ -631,7 +631,7 @@ function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
   local ch = channel or "global"
   UI.panel(x, y, w, h, {
     title = ch == "nearby" and "Nearby chat" or "Chat",
-    subtitle = "T type · Y nearby · /w Name msg",
+    subtitle = "T global · Y nearby · /w · /z zone",
     title_h = 28,
     no_ornament = true,
   })
@@ -648,6 +648,9 @@ function UI.chat_log(x, y, w, h, lines, draft, composing, channel)
       elseif line.channel == "nearby" then
         tag = "[near] "
         UI.color("ok")
+      elseif line.channel == "zone" then
+        tag = "[zone] "
+        UI.color("gold")
       elseif line.kind == "emote" then
         tag = "* "
         UI.color("gold")

@@ -12,14 +12,5 @@ License: https://creativecommons.org/publicdomain/zero/1.0/
 You may use these graphics in personal and commercial projects.
 Credit (Kenney or www.kenney.nl) would be nice but is not mandatory.
 
-File mapping (16×16 masters → game assets):
-  field.png      ← Roguelike RPG Pack spritesheet grass crop
-  wall.png       ← Tiny Town tile_0049 (grey stone)
-  town.png       ← Tiny Town tile_0043 (cobble)
-  water.png      ← RPG Urban Pack tile_0175 (waves)
-  dungeon.png    ← Tiny Dungeon tile_0001 (brick floor)
-  hero.png       ← Tiny Dungeon tile_0097 (knight)
-  hero_other.png ← Tiny Dungeon tile_0086 (red warrior)
-  hero_mage.png  ← Tiny Dungeon tile_0084 (extra)
-  icon_sword.png ← Tiny Dungeon tile_0105
-  enemy_*.png    ← Tiny Dungeon monsters (reference only; combat uses sprites/enemies/)
+Enemy combat sprites may also use generated SVG placeholders under svg/enemies/
+(project-owned). Replace any file under sprites/ freely.

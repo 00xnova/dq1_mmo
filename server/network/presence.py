@@ -96,6 +96,12 @@ async def _loop() -> None:
                 kicked = await kick_idle()
                 if kicked:
                     log.info("kicked %s idle connections", kicked)
+                # Periodic roster refresh so late clients stay consistent
+                try:
+                    if manager.online_ids():
+                        await manager.broadcast_online_force()
+                except Exception:
+                    log.debug("periodic online pulse failed", exc_info=True)
         except asyncio.CancelledError:
             try:
                 await flush_dirty_positions()

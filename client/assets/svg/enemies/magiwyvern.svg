@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="magiwyvern">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/magiwyvern.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <ellipse cx="64" cy="96" rx="24" ry="8" fill="#3b314a" opacity="0.3"/>
+  <polygon points="24,60 4,36 36,50" fill="#d9bbff" stroke="#3b314a" stroke-width="2"/>
+  <polygon points="104,60 124,36 92,50" fill="#d9bbff" stroke="#3b314a" stroke-width="2"/>
+  <ellipse cx="64" cy="68" rx="22" ry="28" fill="#b193de" stroke="#3b314a" stroke-width="3"/>
+  <ellipse cx="64" cy="42" rx="14" ry="12" fill="#b193de" stroke="#3b314a" stroke-width="2"/>
+  <ellipse cx="58" cy="40" rx="2.5" ry="3" fill="#1a1010"/>
+  <ellipse cx="70" cy="40" rx="2.5" ry="3" fill="#1a1010"/>
+  <polygon points="64,90 58,118 70,118" fill="#b193de" stroke="#3b314a" stroke-width="2"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Magiwyvern</text>
+</svg>

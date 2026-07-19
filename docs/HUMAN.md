@@ -5,11 +5,11 @@ For **people**: players, operators, and human contributors.
 | You want… | Open this |
 |:----------|:----------|
 | Install & overview | [../README.md](../README.md) |
-| Docs map | [README.md](README.md) |
+| Docs map (human vs agent) | [README.md](README.md) |
 | Swap sprites | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
-| Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — agents only |
+| Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **agents only** |
 
-**Version:** 0.5.15 · docs refreshed 2026-07-19
+**Version:** 0.5.19 · docs refreshed 2026-07-19
 
 ---
 
@@ -21,8 +21,8 @@ A multiplayer **Dragon Quest I–style** game:
 - Shared **town / field / dungeon** on one map
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
-- Chat: **global**, **nearby**, and **whisper**
-- Emotes, live **online roster**, status sheet (EXP to next)
+- Chat: **global**, **nearby**, **zone**, and **whisper**
+- Emotes, **look** at other players, live **online roster**, status sheet (EXP to next)
 - Shop, gear (sell equipped OK), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
 
@@ -48,6 +48,8 @@ Hero select: **N** new · **D** delete (confirm **Y**) · max 3 heroes.
 | **Field** | Random encounters |
 | **Water** | Blocked |
 | **Dungeon** | Harder fights · **Outside** spell exits to the field |
+
+Your current zone shows as a **ZONE** badge on the HUD.
 
 ---
 
@@ -96,7 +98,9 @@ Press **R** in town for full HP/MP.
 | **Fairy Water** | Temporary repel |
 
 In inventory: **Enter** uses consumables or equips gear (don’t equip herbs — use them).  
-**Tab** opens the shop list in town.
+**Tab** opens the shop list in town.  
+**Herbs** at full HP on the field are not consumed.  
+You can **sell equipped** gear (the slot clears automatically).
 
 ---
 
@@ -104,10 +108,12 @@ In inventory: **Enter** uses consumables or equips gear (don’t equip herbs —
 
 | Key / command | Effect |
 |:--------------|:-------|
-| **T** / **Y** | Global / nearby chat |
+| **T** | Open chat (global channel) |
+| **Y** | Open chat (nearby / AOI) |
 | **/w Name message** | Whisper (private); also `/tell` |
+| **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
-| **F** | Status sheet (stats, gear, spells) |
+| **F** | Status sheet (stats, gear, EXP to next, spells) |
 | **O** or **P** / **Tab** | Who’s online · nearby list |
 | **L** | Look at a nearby (or roster) adventurer |
 | **C** | Toggle chat panel |
@@ -116,9 +122,16 @@ In inventory: **Enter** uses consumables or equips gear (don’t equip herbs —
 **F** status sheet: level, EXP (+ to next), gold, gear, spells.  
 **Online roster** shows names/levels (and ⚔ if in combat) — **not** map positions.
 
-Whispers appear as `[w]` in the chat log. Only online characters can be whispered.
+Chat tags in the log:
 
-**Herbs** at full HP on the field are not consumed. You can **sell equipped** gear from the inventory (slot clears automatically).
+| Tag | Meaning |
+|:----|:--------|
+| *(none / accent)* | Global |
+| `[near]` | Nearby (in view range) |
+| `[zone]` | Same zone type |
+| `[w]` | Whisper |
+
+Only **online** characters can be whispered (by name).
 
 ---
 
@@ -127,8 +140,8 @@ Whispers appear as `[w]` in the chat log. Only online characters can be whispere
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w whisper · E emote · F stats · R inn · H/M magic · K spells · O who · I inv · Esc |
-| **Combat** | ↑↓ · Enter · A / F / H |
+| **Overworld** | WASD · T/Y chat · /w · /z · E · F · L · R · H/M · K · O · ? · I · Esc |
+| **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · U unequip · Tab shop |
 
 ---
@@ -152,7 +165,7 @@ cd server && source .venv/bin/activate && ./run.sh
 - Durable `DATABASE_URL` path
 - Tight `CORS_ORIGINS`
 
-Env vars are listed in the [root README](../README.md#configuration) and `.env.example`.
+Env vars are listed in the [root README](../README.md#-configuration) and `.env.example`.
 
 ---
 
@@ -163,10 +176,11 @@ Env vars are listed in the [root README](../README.md#configuration) and `.env.e
 ./tools/mp_love.sh 2           # two Love2D windows
 ```
 
-Automated tests:
+Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
+# expect: 103 passed
 ```
 
 ---
@@ -176,6 +190,6 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | Audience | Docs |
 |:---------|:-----|
 | **You (human)** | This file + [README](../README.md) |
-| **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) only for protocol, hot paths, and tests |
+| **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) for protocol, hot paths, tests, reliability |
 
-Do **not** put long WebSocket protocol tables in human docs — they live in `AGENTS.md`.
+Do **not** put long WebSocket protocol tables in human docs — they live only in `AGENTS.md`.

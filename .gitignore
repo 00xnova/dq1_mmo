@@ -22,6 +22,9 @@ client/libs/lua-bignumber/
 client/libs/save-system/
 *.love
 
+# Optional Kenney pack download cache (re-fetch with import_open_assets.py --download)
+tools/_kenney_cache/
+
 # OS / editor
 .DS_Store
 .idea/

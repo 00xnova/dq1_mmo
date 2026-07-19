@@ -55,6 +55,7 @@ class ConnectionManager:
         # Per-loop locks: a module-level asyncio.Lock binds to the first loop and
         # breaks when tests / restarts use a new event loop.
         self._locks: dict[int, asyncio.Lock] = {}
+        self._session_seq = 0
 
     def _lock(self) -> asyncio.Lock:
         loop = asyncio.get_running_loop()
@@ -125,6 +126,8 @@ class ConnectionManager:
                             om["visible"].discard(character_id)
 
             now = time.monotonic()
+            self._session_seq += 1
+            session_id = self._session_seq
             self._connections[character_id] = websocket
             self._meta[character_id] = {
                 "id": character_id,
@@ -144,6 +147,7 @@ class ConnectionManager:
                 "dirty": False,
                 "repel_steps": grace_repel,
                 "radiant_steps": grace_radiant,
+                "session_id": session_id,
                 "visible": set(),  # peer ids currently in AOI
             }
             # Live again — drop any leftover grace bag
@@ -568,7 +572,23 @@ class ConnectionManager:
         if me is None:
             return
         me["level"] = int(level)
-        await self.publish_status(character_id)
+        # Pulse roster so other clients see the new level without a who refresh
+        await self.publish_status(character_id, pulse_online=True)
+
+    def session_id(self, character_id: int) -> int | None:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None
+        sid = meta.get("session_id")
+        return int(sid) if sid is not None else None
+
+    async def broadcast_online_force(self) -> None:
+        """Unconditional online pulse (periodic refresh; bypasses debounce)."""
+        self._online_pulse_pending = False
+        self._last_online_pulse = time.monotonic()
+        await self.broadcast(
+            {"type": "online", "online": len(self._connections), "roster": self.online_roster()}
+        )
 
     def mark_clean(self, character_id: int) -> None:
         meta = self._meta.get(character_id)
@@ -621,13 +641,17 @@ class ConnectionManager:
         *,
         include_self: bool = False,
     ) -> None:
-        """Send to peers currently in source's AOI set (or geometric nearby if empty)."""
+        """Send to geometric AOI peers (union with cached visible for safety).
+
+        Prefer live geometry over the cached visible set so stale/partial AOI
+        never drops nearby chat, emotes, or social traffic.
+        """
         me = self._meta.get(source_id)
         if me is None:
             return
-        targets = set(me.get("visible") or set())
-        if not targets:
-            targets = set(self.ids_nearby(source_id))
+        targets = set(self.ids_nearby(source_id))
+        # Union cached visible in case geometry and cache briefly disagree mid-move
+        targets |= set(me.get("visible") or set())
         if include_self:
             targets.add(source_id)
         dead: list[tuple[int, WebSocket]] = []
@@ -645,6 +669,84 @@ class ConnectionManager:
         for cid, ws in dead:
             await self.disconnect(cid, ws)
 
+    def ids_in_zone(self, character_id: int) -> list[int]:
+        """Players on the same map whose tile zone matches the source (town/field/dungeon)."""
+        from game.world_manager import zone_at
+
+        me = self._meta.get(character_id)
+        if me is None:
+            return []
+        try:
+            my_zone = zone_at(int(me["x"]), int(me["y"]))
+        except Exception:
+            return []
+        if my_zone in ("blocked",):
+            return []
+        out: list[int] = []
+        for cid, meta in self._meta.items():
+            if cid == character_id:
+                continue
+            if meta.get("map_id") != me.get("map_id"):
+                continue
+            try:
+                z = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                continue
+            if z == my_zone:
+                out.append(cid)
+        return out
+
+    async def broadcast_zone(
+        self,
+        source_id: int,
+        message: dict[str, Any],
+        *,
+        include_self: bool = True,
+    ) -> None:
+        """Send to all online players in the same zone (town / field / dungeon)."""
+        me = self._meta.get(source_id)
+        if me is None:
+            return
+        targets = set(self.ids_in_zone(source_id))
+        if include_self:
+            targets.add(source_id)
+        dead: list[tuple[int, WebSocket]] = []
+        payload = json.dumps(message, default=str)
+        for cid in targets:
+            ws = self._connections.get(cid)
+            if ws is None:
+                continue
+            try:
+                await ws.send_text(payload)
+            except Exception:
+                dead.append((cid, ws))
+        for cid, ws in dead:
+            await self.disconnect(cid, ws)
+
+    async def rebuild_aoi(self, character_id: int) -> list[dict[str, Any]]:
+        """Reconcile cached AOI with geometry; notify joins/leaves. Returns msgs for mover."""
+        me = self._meta.get(character_id)
+        if me is None:
+            return []
+        return await self.publish_move(
+            character_id,
+            float(me["x"]),
+            float(me["y"]),
+            seq=int(me.get("last_move_seq") or 0) or None,
+        )
+
+    def find_id_by_player_id(self, player_id: Any) -> int | None:
+        """Resolve online character id from int/str player_id."""
+        if player_id is None:
+            return None
+        try:
+            pid = int(player_id)
+        except (TypeError, ValueError):
+            return None
+        if pid in self._meta and pid in self._connections:
+            return pid
+        return None
+
 
 manager = ConnectionManager()
 
@@ -658,3 +760,4 @@ def reset_manager() -> None:
     manager._last_online_pulse = 0.0
     manager._online_pulse_pending = False
     manager._online_flush_scheduled = False
+    manager._session_seq = 0

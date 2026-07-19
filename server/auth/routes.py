@@ -274,7 +274,11 @@ async def list_characters(user: dict = Depends(get_current_user)):
 
 @router.delete("/characters/{character_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_character(character_id: int, user: dict = Depends(get_current_user)):
-    """Delete one of the caller's heroes (and their inventory)."""
+    """Delete one of the caller's heroes (and their inventory).
+
+    If the character is currently online, drop their WebSocket so they cannot
+    keep acting with a deleted row.
+    """
     async with db_write() as db:
         async with db.execute(
             "SELECT id FROM characters WHERE id = ? AND user_id = ?",
@@ -292,4 +296,20 @@ async def delete_character(character_id: int, user: dict = Depends(get_current_u
             (character_id, user["id"]),
         )
         await db.commit()
+
+    # Kick live session if any (best-effort; tests / multiplayer safety)
+    try:
+        from game.combat_engine import combat_engine
+        from network.websocket_manager import manager
+
+        combat_engine.end(character_id)
+        ws = manager._connections.get(character_id)
+        if ws is not None:
+            try:
+                await ws.close(code=4001, reason="Character deleted")
+            except Exception:
+                pass
+        await manager.disconnect(character_id, ws)
+    except Exception:
+        pass
     return None

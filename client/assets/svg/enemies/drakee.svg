@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128"
+     shape-rendering="geometricPrecision" role="img" aria-label="drakee">
+  <!-- Project placeholder — replace client/assets/sprites/enemies/drakee.png anytime -->
+  <rect width="128" height="128" fill="none"/>
+  
+  <ellipse cx="64" cy="88" rx="22" ry="10" fill="#31404a" opacity="0.35"/>
+  <ellipse cx="64" cy="70" rx="28" ry="22" fill="#93c0de" stroke="#31404a" stroke-width="3"/>
+  <ellipse cx="88" cy="58" rx="16" ry="12" fill="#93c0de" stroke="#31404a" stroke-width="2"/>
+  <polygon points="100,52 118,48 104,62" fill="#bbe8ff" stroke="#31404a" stroke-width="2"/>
+  <ellipse cx="94" cy="54" rx="3" ry="3" fill="#1a1010"/>
+  <rect x="40" y="78" width="8" height="14" fill="#31404a"/>
+  <rect x="56" y="80" width="8" height="14" fill="#31404a"/>
+  <rect x="72" y="78" width="8" height="14" fill="#31404a"/>
+
+  <text x="64" y="122" text-anchor="middle" font-family="monospace" font-size="10" fill="#333">Drakee</text>
+</svg>
