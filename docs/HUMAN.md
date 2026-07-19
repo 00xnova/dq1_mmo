@@ -22,6 +22,9 @@ Protocol tables and test matrices stay **out** of this guide.
 
 **Recent for players/ops (v0.5.130):** **`/ignore`** and **`/unignore`** confirm with a plain line · **`/ignores`** notes near/far and zone when online · soft reconnect still restores your mute list · **673** tests.
 
+> [!TIP]
+> **Mute without drama:** **`/ignore Hero`** · check **`/ignores`** (near · far · zone) · **`/unignore Hero`** when you’re ready. After a brief disconnect, the list comes back.
+
 ---
 
 ## What is this?

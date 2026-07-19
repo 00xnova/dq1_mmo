@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/look</code> with near coords / far zone · mute list · two-way social memory · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/look</code> near/far · <code>/ignores</code> near · far · zone · two-way social memory · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -85,7 +85,7 @@
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
   <img alt="look" src="https://img.shields.io/badge//look-near_coords_·_far_zone-0ea5e9?style=flat-square" />
-  <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far-64748b?style=flat-square" />
+  <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far_·_zone-64748b?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-/played_·_mute_·_social-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
@@ -243,8 +243,32 @@ flowchart LR
   <img alt="tests" src="https://img.shields.io/badge/673_tests-059669?style=for-the-badge" />
 </p>
 
+```mermaid
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#334155', 'primaryTextColor': '#f8fafc', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b'}}}%%
+flowchart LR
+  subgraph mute ["Mute loop"]
+    I["/ignore Hero"] --> C["Muted Hero [near · town]"]
+    C --> L["/ignores"]
+    L --> U["/unignore Hero"]
+  end
+  subgraph soft ["Brief drop ~1 min"]
+    L --> S[Mute list restored]
+  end
+```
+
 <table>
 <tr>
+<td width="12%" valign="top" align="center">
+
+### 🔇 Mute
+| | |
+|:--|:--|
+| **`/ignore`** | mute |
+| **`/ignores`** | list |
+
+<sub>near · far · zone</sub>
+
+</td>
 <td width="12%" valign="top" align="center">
 
 ### 💰 Peeks
@@ -286,17 +310,6 @@ flowchart LR
 |:--|:--|
 | **`/r`** | reply last |
 | **`/lastwhisper`** | who |
-
-<sub>near/far</sub>
-
-</td>
-<td width="12%" valign="top" align="center">
-
-### 🔇 Mute
-| | |
-|:--|:--|
-| **`/ignore`** | mute |
-| **`/ignores`** | list |
 
 <sub>near/far</sub>
 
@@ -387,7 +400,7 @@ flowchart TB
 > **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
 
 > [!NOTE]
-> **Brief disconnect (~1 min):** **mute list** (with near/far when they are online again), **last whisper**, **share partners**, **emote partners**, **meetup invites**, buffs, and your **`/played` session age** come back when you rejoin.
+> **Brief disconnect (~1 min):** **mute list** (near/far **and zone** when they are online again), **last whisper**, **share partners**, **emote partners**, **meetup invites**, buffs, and your **`/played` session age** come back when you rejoin.
 
 > [!IMPORTANT]
 > **Two audiences, two trees — do not mix.**  
@@ -1010,7 +1023,7 @@ flowchart LR
 | **Inspiration** | *Dragon Quest I / Dragon Warrior* (NES-era combat math — not a ROM dump) |
 | **Combat reference** | [dq1-combat](https://github.com/Im-Nova-Dev/dq1-combat) |
 | **Art (CC0)** | [Kenney.nl](https://kenney.nl) · [Tiny Creatures](https://opengameart.org/content/tiny-creatures) — [ATTRIBUTION](client/assets/ATTRIBUTION.md) |
-| **Badges / icons** | [shields.io](https://shields.io) · [skillicons.dev](https://skillicons.dev) · GitHub-flavored markdown · mermaid |
+| **Badges / icons** | [shields.io](https://shields.io) · [skillicons.dev](https://skillicons.dev) · [github-readme-stats](https://github.com/anuraghazra/github-readme-stats) · mermaid · GFM |
 | **Disclaimer** | Fan project — **not** Square Enix |
 
 ---
@@ -1019,9 +1032,17 @@ flowchart LR
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo">
     <img alt="dq1_mmo" src="https://github-readme-stats.vercel.app/api/pin/?username=Im-Nova-Dev&repo=dq1_mmo&theme=radical&hide_border=true" />
   </a>
-  &nbsp;
+</p>
+
+<p align="center">
   <a href="https://skillicons.dev">
-    <img alt="stack" src="https://skillicons.dev/icons?i=py,fastapi,lua,sqlite,linux&theme=dark" />
+    <img alt="stack" src="https://skillicons.dev/icons?i=py,fastapi,lua,sqlite,linux,github&theme=dark" />
+  </a>
+</p>
+
+<p align="center">
+  <a href="https://star-history.com/#Im-Nova-Dev/dq1_mmo&Date">
+    <img alt="star history" src="https://api.star-history.com/svg?repos=Im-Nova-Dev/dq1_mmo&type=Date&theme=dark" width="96%" />
   </a>
 </p>
 
