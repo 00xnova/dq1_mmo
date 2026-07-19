@@ -35,6 +35,7 @@ from game.world_manager import (
     map_payload,
     zone_at,
 )
+from network.handlers import afk as afk_handlers
 from network.handlers import hud_info as hud_info_handlers
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
@@ -170,95 +171,13 @@ async def handle_message(
     if hud_peek is not None:
         return hud_peek
 
-    # who/near · look · status · gold · version/played · mute · keys/help/motd via handlers
+    afk_peek = await afk_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if afk_peek is not None:
+        return afk_peek
 
-    # --- Manual AFK / away / busy / back (+ optional status message) ---
-    if msg_type in ("afk", "away", "busy", "back"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        want_afk = msg_type in ("afk", "away", "busy")
-        if msg_type == "back":
-            want_afk = False
-        if msg_type in ("afk", "busy") and (data.get("clear") or data.get("off")):
-            want_afk = False
-        # Only real strings become AFK reasons — never str(True)/str(123)
-        raw_afk_text = ""
-        for _k in ("text", "message", "reason", "status", "mode"):
-            _v = data.get(_k)
-            if isinstance(_v, str) and _v.strip():
-                raw_afk_text = _v.strip()
-                break
-        # /afk with text "back" or explicit back
-        if msg_type in ("afk", "away", "busy") and raw_afk_text.lower() in (
-            "back",
-            "off",
-            "clear",
-            "0",
-            "false",
-        ):
-            want_afk = False
-            raw_afk_text = ""
-        meta_pre = manager.get_meta(character_id)
-        was_afk = bool((meta_pre or {}).get("afk"))
-        afk_msg_arg: str | None = None
-        if want_afk:
-            # Empty → no reason; non-empty → set/sanitize (sanitize rejects non-str)
-            afk_msg_arg = raw_afk_text if raw_afk_text else None
-        if not manager.set_afk(character_id, want_afk, message=afk_msg_arg):
-            outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
-            return character_id, user_id, outbound, None
-        if not want_afk:
-            manager.touch(character_id)
-        await manager.publish_status(character_id, pulse_online=True)
-        meta = manager.get_meta(character_id)
-        from network.websocket_manager import _is_idle as _idle_chk
-
-        # Nearby system notice when AFK state flips (multiplayer roster hygiene)
-        if want_afk != was_afk and meta is not None:
-            pname = (meta.get("name") or "Hero")
-            reason = meta.get("afk_message") if want_afk else None
-            if want_afk and isinstance(reason, str) and reason.strip():
-                notice_text = f"{pname} is now AFK: {reason.strip()[:48]}."
-            elif want_afk:
-                notice_text = f"{pname} is now AFK."
-            else:
-                notice_text = f"{pname} is back."
-            notice = msg(
-                ServerMessageType.CHAT,
-                player_id=character_id,
-                name="System",
-                text=notice_text,
-                channel="system",
-                system=True,
-            )
-            sid_a = manager.session_id(character_id)
-            if sid_a is not None:
-                notice["session_id"] = sid_a
-            await manager.broadcast_nearby(
-                character_id, notice, include_self=False, respect_ignore=False
-            )
-
-        ack_reason = None
-        if want_afk and meta is not None:
-            am = meta.get("afk_message")
-            if isinstance(am, str) and am.strip():
-                ack_reason = am.strip()[:48]
-        ack_body: dict = {
-            "type": "afk",
-            "afk": want_afk,
-            "idle": _idle_chk(meta) if meta else want_afk,
-            "session_id": manager.session_id(character_id),
-            "message": (
-                (f"You are now AFK: {ack_reason}." if ack_reason else "You are now AFK.")
-                if want_afk
-                else "Welcome back."
-            ),
-        }
-        if ack_reason:
-            ack_body["afk_message"] = ack_reason
-        outbound.append(ack_body)
-        return character_id, user_id, outbound, None
+    # who/near · look · status · gold · version · mute · keys/help · afk via handlers
 
     # Social peeks (lastwhisper/social/lastemote/lastshare/lastinvite/pending)
     # handled early via network.handlers.social_peeks
