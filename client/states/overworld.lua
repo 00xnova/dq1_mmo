@@ -241,6 +241,28 @@ local function bind_handlers(self)
     UI.toast(tostring(msg) .. pop, "info")
   end)
 
+  Network.on("counts", function(data)
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    if data.zones then
+      self.zones = data.zones
+    end
+    local line = data.message
+    if not line or line == "" then
+      local z = data.zones or {}
+      line = string.format(
+        "Online %d · nearby %d · town %d · field %d · dung %d",
+        tonumber(data.online) or self.online or 0,
+        tonumber(data.nearby_count) or 0,
+        tonumber(z.town) or 0,
+        tonumber(z.field) or 0,
+        tonumber(z.dungeon) or 0
+      )
+    end
+    UI.toast(tostring(line), "info")
+  end)
+
   Network.on("online", function(data)
     if data.online ~= nil then
       self.online = tonumber(data.online) or self.online
@@ -405,6 +427,8 @@ local function bind_handlers(self)
     World.remove_player(data.player_id)
     if data.reason == "out_of_range" then
       -- quiet — walking out of range is normal
+    elseif data.reason == "idle" then
+      UI.toast(name .. " went idle", "leave")
     else
       UI.toast(name .. " left the area", "leave")
     end
@@ -467,6 +491,9 @@ local function bind_handlers(self)
       loc = string.format(" @ (%d,%d)", math.floor(p.x + 0.01), math.floor(p.y + 0.01))
     elseif p.nearby == false then
       loc = " (far)"
+    end
+    if p.zone and p.zone ~= "" then
+      loc = loc .. " [" .. tostring(p.zone) .. "]"
     end
     local combat = p.in_combat and " ⚔" or ""
     local idle = p.idle and " (AFK)" or ""
@@ -602,10 +629,24 @@ local function bind_handlers(self)
         Session.character.gold = data.gold
       end
     end
-    if data.message then
+    if data.preview then
+      -- Quote only — second R within a few seconds completes the rest
+      local msg = data.message or "Inn quote"
+      if data.full then
+        self._inn_quote_ready = false
+        UI.toast(msg, "info")
+      elseif data.can_afford == false then
+        self._inn_quote_ready = false
+        local need = data.cost and (" (need " .. tostring(data.cost) .. " G)") or ""
+        UI.toast(msg .. need, "danger")
+      else
+        self._inn_quote_ready = true
+        self._inn_quote_t = love.timer.getTime()
+        UI.toast(msg .. " — press R again to stay", "info")
+      end
+    elseif data.message then
+      self._inn_quote_ready = false
       UI.toast(data.message, "ok")
-    elseif data.preview and data.message then
-      UI.toast(data.message, "info")
     end
   end)
 
@@ -918,6 +959,10 @@ function Overworld:keypressed(key)
         local wants_zone = text:match("^[/%!]zone%s*$")
           or text:match("^[/%!]where%s*$")
           or text:match("^[/%!]area%s*$")
+        local wants_counts = text:match("^[/%!]counts%s*$")
+          or text:match("^[/%!]census%s*$")
+          or text:match("^[/%!]population%s*$")
+        local wants_inn = text:match("^[/%!]inn%s*$") or text:match("^[/%!]rest%s*$")
         local wants_ignores = text:match("^[/%!]ignores%s*$") or text:match("^[/%!]ignorelist%s*$")
         local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
         -- supports: /find Name · /find Name zone:field · /find zone:town
@@ -978,6 +1023,14 @@ function Overworld:keypressed(key)
           else
             Network.send({ type = "zone" })
           end
+        elseif wants_counts then
+          Network.send({ type = "counts" })
+        elseif wants_inn then
+          if self.zone == "town" then
+            Network.send({ type = "rest", preview = true })
+          else
+            UI.toast("The inn is in town", "danger")
+          end
         elseif wants_ignores then
           Network.ignores()
         elseif find_q and find_q ~= "" then
@@ -1034,8 +1087,16 @@ function Overworld:keypressed(key)
     end
   elseif key == "r" and not self.locked then
     if self.zone == "town" then
-      Network.send({ type = "rest" })
+      -- First R: quote cost; second R within 4s: actually rest
+      local now = love.timer.getTime()
+      if self._inn_quote_ready and self._inn_quote_t and (now - self._inn_quote_t) < 4.0 then
+        self._inn_quote_ready = false
+        Network.send({ type = "rest" })
+      else
+        Network.send({ type = "rest", preview = true })
+      end
     else
+      self._inn_quote_ready = false
       UI.toast("The inn is in town", "danger")
     end
   elseif key == "h" and not self.locked then

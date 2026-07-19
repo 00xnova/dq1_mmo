@@ -231,9 +231,12 @@ class ConnectionManager:
         self,
         character_id: int,
         websocket: WebSocket | None = None,
+        *,
+        reason: str = "disconnect",
     ) -> dict[str, Any] | None:
         notify_ids: list[int] = []
         left_meta: dict[str, Any] | None = None
+        leave_reason = (reason or "disconnect").strip()[:32] or "disconnect"
         async with self._lock():
             current = self._connections.get(character_id)
             if websocket is not None and current is not None and current is not websocket:
@@ -270,8 +273,15 @@ class ConnectionManager:
                 "type": "player_left",
                 "player_id": character_id,
                 "name": left_meta.get("name"),
-                "reason": "disconnect",
+                "reason": leave_reason,
             }
+            z = _zone_of(left_meta)
+            if z:
+                leave_msg["zone"] = z
+            # Session at disconnect helps clients drop the right avatar instance
+            sid = left_meta.get("session_id")
+            if sid is not None:
+                leave_msg["session_id"] = sid
             for oid in notify_ids:
                 await self.send(oid, leave_msg)
         if left_meta is not None:
@@ -489,6 +499,39 @@ class ConnectionManager:
                 return cid
         return None
 
+    def resolve_live_name(self, name: str) -> tuple[int | None, str | None]:
+        """Resolve a live player by exact name, else unique prefix (min 2 chars).
+
+        Returns (character_id, error_reason). error_reason is None on success.
+        - exact match wins
+        - if no exact: unique case-insensitive prefix among live sockets
+        - multiple prefix hits → ("name ambiguous",)
+        - none → player not online
+        """
+        if not name or not isinstance(name, str):
+            return None, "player not online"
+        key = name.strip().lower()
+        if not key:
+            return None, "player not online"
+        exact = self.find_id_by_name(name)
+        if exact is not None:
+            return exact, None
+        # Prefix fallback (require 2+ chars to avoid single-letter spam)
+        if len(key) < 2:
+            return None, "player not online"
+        hits: list[int] = []
+        for cid, meta in self._meta.items():
+            if cid not in self._connections:
+                continue
+            n = str(meta.get("name") or "").strip().lower()
+            if n.startswith(key):
+                hits.append(cid)
+        if len(hits) == 1:
+            return hits[0], None
+        if len(hits) > 1:
+            return None, "name ambiguous"
+        return None, "player not online"
+
     def is_ignored_by(self, listener_id: int, speaker_id: int) -> bool:
         """True if listener has muted/ignored speaker (no chat/emote delivery)."""
         if listener_id == speaker_id:
@@ -599,6 +642,17 @@ class ConnectionManager:
         meta["last_seen"] = now
         return True, 0.0
 
+    def refund_chat(self, character_id: int) -> None:
+        """Undo the last allow_chat stamp (failed whisper delivery, etc.).
+
+        Lets the next legitimate chat succeed without waiting out the interval
+        after a multiplayer send race (target socket died mid-deliver).
+        """
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return
+        meta["last_chat_at"] = 0.0
+
     async def publish_status(self, character_id: int, *, pulse_online: bool = False) -> None:
         """Broadcast current public status (level, combat) to AOI peers.
 
@@ -622,6 +676,9 @@ class ConnectionManager:
         z = _zone_of(me)
         if z:
             payload["zone"] = z
+        sid = me.get("session_id")
+        if sid is not None:
+            payload["session_id"] = sid
         targets = set(self.ids_nearby(character_id)) | set(me.get("visible") or set())
         # Only live sockets (cached visible can hold ghosts briefly)
         targets = {oid for oid in targets if oid in self._connections}
@@ -791,6 +848,10 @@ class ConnectionManager:
                 }
                 if other_pub.get("zone"):
                     join_self["zone"] = other_pub["zone"]
+                # Peer's live session so client can reconcile reconnects
+                osid = other.get("session_id")
+                if osid is not None:
+                    join_self["session_id"] = osid
                 to_self.append(join_self)
 
             for oid in left:
@@ -799,18 +860,25 @@ class ConnectionManager:
                 if other is not None:
                     other.setdefault("visible", set()).discard(character_id)
                 leave_peer.append((oid, name if isinstance(name, str) else None))
-                to_self.append(
-                    {
-                        "type": "player_left",
-                        "player_id": oid,
-                        "name": name,
-                        "reason": "out_of_range",
-                    }
-                )
+                leave_self = {
+                    "type": "player_left",
+                    "player_id": oid,
+                    "name": name,
+                    "reason": "out_of_range",
+                }
+                if other is not None:
+                    oz = _zone_of(other)
+                    if oz:
+                        leave_self["zone"] = oz
+                to_self.append(leave_self)
 
             stay_ids = list(stayed)
 
         assert me_pub is not None
+        me_sid = None
+        me_live = self._meta.get(character_id)
+        if me_live is not None:
+            me_sid = me_live.get("session_id")
         join_them = {
             "type": "player_joined",
             "player_id": character_id,
@@ -823,19 +891,21 @@ class ConnectionManager:
         }
         if me_pub.get("zone"):
             join_them["zone"] = me_pub["zone"]
+        if me_sid is not None:
+            join_them["session_id"] = me_sid
         for oid, _other_pub in join_peer:
             await self.send(oid, join_them)
 
+        leave_them = {
+            "type": "player_left",
+            "player_id": character_id,
+            "name": me_pub["name"],
+            "reason": "out_of_range",
+        }
+        if me_pub.get("zone"):
+            leave_them["zone"] = me_pub["zone"]
         for oid, name in leave_peer:
-            await self.send(
-                oid,
-                {
-                    "type": "player_left",
-                    "player_id": character_id,
-                    "name": me_pub["name"],
-                    "reason": "out_of_range",
-                },
-            )
+            await self.send(oid, leave_them)
 
         move_msg = {
             "type": "player_moved",
@@ -850,6 +920,8 @@ class ConnectionManager:
         }
         if me_pub.get("zone"):
             move_msg["zone"] = me_pub["zone"]
+        if me_sid is not None:
+            move_msg["session_id"] = me_sid
         for oid in stay_ids:
             await self.send(oid, move_msg)
 

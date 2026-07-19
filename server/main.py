@@ -123,6 +123,9 @@ async def websocket_endpoint(websocket: WebSocket):
                 "zone",
                 "where",
                 "area",
+                "counts",
+                "census",
+                "population",
                 "look",
                 "examine",
                 "status",
@@ -191,6 +194,7 @@ async def websocket_endpoint(websocket: WebSocket):
                     join_zone = _zone_at(int(connect_meta["x"]), int(connect_meta["y"]))
                 except Exception:
                     join_zone = None
+                sid = manager.session_id(connect_meta["character_id"])
                 join_payload = msg(
                     ServerMessageType.PLAYER_JOINED,
                     player_id=connect_meta["character_id"],
@@ -203,8 +207,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 if join_zone:
                     join_payload["zone"] = join_zone
+                if sid is not None:
+                    join_payload["session_id"] = sid
                 for p in peers:
                     await manager.send(p["id"], join_payload)
+                # Soft-grace restore snapshot for client multiplayer UI
+                ignores_snap = manager.ignore_list(connect_meta["character_id"])
+                lw_id, lw_name = manager.last_whisper_from(connect_meta["character_id"])
+                last_whisper = None
+                if lw_id is not None or lw_name:
+                    last_whisper = {"id": lw_id, "name": lw_name}
                 outbound.append(
                     msg(
                         ServerMessageType.WORLD_STATE,
@@ -223,21 +235,37 @@ async def websocket_endpoint(websocket: WebSocket):
                         repel=manager.repel_remaining(connect_meta["character_id"]),
                         radiant=manager.radiant_remaining(connect_meta["character_id"]),
                         zone=join_zone,
+                        session_id=sid,
+                        ignores=ignores_snap,
+                        last_whisper=last_whisper,
                     )
                 )
                 # Stamp session id + multiplayer welcome on auth_ok (not a chat
                 # line — avoids polluting the chat stream for clients/tests).
-                sid = manager.session_id(connect_meta["character_id"])
                 online_n = len(manager.online_ids())
                 hero = str(connect_meta.get("name") or "Hero")
                 zone_bit = f" in the {join_zone}" if join_zone else ""
                 heroes = "hero" if online_n == 1 else "heroes"
-                welcome = f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}."
+                nearby_n = len(peers)
+                near_bit = f", {nearby_n} nearby" if nearby_n else ""
+                welcome = (
+                    f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}{near_bit}."
+                )
                 for o in outbound:
                     if o.get("type") == ServerMessageType.AUTH_OK:
                         o["session_id"] = sid
                         o["online"] = online_n
+                        o["nearby_count"] = nearby_n
+                        o["zones"] = manager.zone_counts()
                         o["welcome"] = welcome
+                        o["ignores"] = ignores_snap
+                        o["last_whisper"] = last_whisper
+                        o["repel"] = manager.repel_remaining(
+                            connect_meta["character_id"]
+                        )
+                        o["radiant"] = manager.radiant_remaining(
+                            connect_meta["character_id"]
+                        )
 
             # Deliver auth_ok / world_state / combat_resume BEFORE any global pulse so
             # clients always see auth_ok as the first post-auth message (not `online`).
@@ -257,6 +285,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 break
 
             if connect_meta is not None:
+                # Re-announce combat flag after soft reconnect so AOI peers stay correct
+                if connect_meta.get("in_combat"):
+                    try:
+                        await manager.publish_status(
+                            connect_meta["character_id"], pulse_online=True
+                        )
+                    except Exception:
+                        log.exception("publish_status on combat reconnect failed")
                 # Roster pulse after the joiner already received auth_ok + world_state
                 try:
                     await manager.broadcast_online()

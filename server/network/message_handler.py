@@ -117,6 +117,35 @@ def sanitize_chat(raw: Any) -> str | None:
     return text
 
 
+async def _announce_combat_outcome(character_id: int, outcome: str) -> None:
+    """Nearby multiplayer system line for combat result (victory / fled / defeat)."""
+    hero = (manager.get_meta(character_id) or {}).get("name") or "Hero"
+    if outcome == "defeat":
+        text = f"{hero} was defeated!"
+        include_self = True
+    elif outcome == "victory":
+        text = f"{hero} was victorious!"
+        include_self = False
+    elif outcome == "fled":
+        text = f"{hero} fled battle!"
+        include_self = False
+    else:
+        return
+    await manager.broadcast_nearby(
+        character_id,
+        msg(
+            ServerMessageType.CHAT,
+            player_id=character_id,
+            name="System",
+            text=text,
+            channel="system",
+            system=True,
+        ),
+        include_self=include_self,
+        respect_ignore=False,
+    )
+
+
 def _combat_update(battle, events: list | None = None) -> dict:
     snap = battle.snapshot()
     return msg(
@@ -308,6 +337,30 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
+    # --- Lightweight census (online + zone counts, no full roster) ---
+    if msg_type in ("counts", "census", "population"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        zones = manager.zone_counts()
+        online_n = len(manager.online_ids())
+        nearby_n = len(manager.ids_nearby(character_id))
+        outbound.append(
+            msg(
+                "counts",
+                online=online_n,
+                nearby_count=nearby_n,
+                zones=zones,
+                message=(
+                    f"{online_n} online · nearby {nearby_n} · "
+                    f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
+                    f"dungeon {zones.get('dungeon', 0)}"
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
     # --- Where am I / zone population (multiplayer social) ---
     if msg_type in ("zone", "where", "area"):
         if character_id is None:
@@ -362,12 +415,15 @@ async def handle_message(
             except (TypeError, ValueError):
                 tid = None
         if tid is None and isinstance(target_name, str):
-            tid = manager.find_id_by_name(target_name)
+            tid, nerr = manager.resolve_live_name(target_name)
+            if nerr == "name ambiguous":
+                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                return character_id, user_id, outbound, None
         if tid is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
             return character_id, user_id, outbound, None
         tmeta = manager.get_meta(tid)
-        if tmeta is None:
+        if tmeta is None or tid not in manager.online_ids():
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         nearby_ids = set(manager.ids_nearby(character_id))
@@ -379,6 +435,13 @@ async def handle_message(
             "in_combat": bool(tmeta.get("in_combat")),
             "nearby": is_near,
         }
+        # Zone type is OK without coords (same privacy model as who/find)
+        try:
+            tz = zone_at(int(tmeta["x"]), int(tmeta["y"]))
+            if tz in ("town", "field", "dungeon"):
+                card["zone"] = tz
+        except Exception:
+            pass
         if is_near:
             card["x"] = tmeta.get("x")
             card["y"] = tmeta.get("y")
@@ -465,7 +528,7 @@ async def handle_message(
                 commands=[
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
-                    {"cmd": "whisper", "hint": "/w Name message"},
+                    {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
                     {"cmd": "status", "hint": "F or /status — self sheet"},
@@ -473,8 +536,9 @@ async def handle_message(
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where — area + who is here"},
+                    {"cmd": "counts", "hint": "/counts · /census — online + zone totals"},
                     {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
-                    {"cmd": "rest", "hint": "R — inn (town only)"},
+                    {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
                     {"cmd": "inventory", "hint": "I — bag (12 stacks · max 8) / shop"},
                     {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
@@ -501,7 +565,10 @@ async def handle_message(
             data.get("player_id") or data.get("id") or data.get("to_id")
         )
         if target_id is None and isinstance(target_name, str):
-            target_id = manager.find_id_by_name(target_name)
+            target_id, nerr = manager.resolve_live_name(target_name)
+            if nerr == "name ambiguous":
+                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                return character_id, user_id, outbound, None
         if target_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
@@ -535,7 +602,23 @@ async def handle_message(
             data.get("player_id") or data.get("id") or data.get("to_id")
         )
         if target_id is None and isinstance(target_name, str):
-            target_id = manager.find_id_by_name(target_name)
+            # Prefer live resolve; fall back to offline ignore_names scan
+            target_id, nerr = manager.resolve_live_name(target_name)
+            if nerr == "name ambiguous":
+                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                return character_id, user_id, outbound, None
+            if target_id is None:
+                # Offline ignored player: match cached name
+                meta = manager.get_meta(character_id) or {}
+                names = meta.get("ignore_names") or {}
+                key = target_name.strip().lower()
+                for tid, n in names.items():
+                    if str(n).strip().lower() == key:
+                        try:
+                            target_id = int(tid)
+                        except (TypeError, ValueError):
+                            target_id = None
+                        break
         if target_id is None:
             # allow unignore by id even if offline
             try:
@@ -622,6 +705,7 @@ async def handle_message(
                 players=hits,
                 online=len(manager.online_ids()),
                 count=len(hits),
+                zones=manager.zone_counts(),
             )
         )
         return character_id, user_id, outbound, None
@@ -970,22 +1054,9 @@ async def handle_message(
                 end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
                 end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
             outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
+            # Multiplayer: nearby system note for victory / flee / defeat
+            await _announce_combat_outcome(character_id, str(battle.outcome))
             if battle.outcome == "defeat":
-                # Multiplayer: nearby system note that the hero fell
-                hero = (manager.get_meta(character_id) or {}).get("name") or "Hero"
-                await manager.broadcast_nearby(
-                    character_id,
-                    msg(
-                        ServerMessageType.CHAT,
-                        player_id=character_id,
-                        name="System",
-                        text=f"{hero} was defeated!",
-                        channel="system",
-                        system=True,
-                    ),
-                    include_self=True,
-                    respect_ignore=False,
-                )
                 # Respawn in town with AOI refresh
                 aoi_msgs = await manager.publish_move(
                     character_id, SPAWN_X, SPAWN_Y, seq=None
@@ -1283,7 +1354,11 @@ async def handle_message(
                 data.get("to_id") or data.get("player_id") or data.get("id")
             )
             if target_id is None and isinstance(target_name, str) and target_name.strip():
-                target_id = manager.find_id_by_name(target_name)
+                tid, name_err = manager.resolve_live_name(target_name)
+                if name_err == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
             if target_id is None and not (
                 isinstance(target_name, str) and target_name.strip()
             ) and data.get("to_id") is None and data.get("player_id") is None:
@@ -1336,6 +1411,8 @@ async def handle_message(
         # Deliver to target; fail closed if socket is dead (don't echo a lie)
         delivered = await manager.send(target_id, whisper_msg)
         if not delivered:
+            # Don't punish sender for multiplayer delivery races
+            manager.refund_chat(character_id)
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         outbound.append(whisper_msg)
@@ -1361,7 +1438,7 @@ async def handle_message(
                 msg(ServerMessageType.ERROR, reason="reserved channel")
             )
             return character_id, user_id, outbound, None
-        if channel not in ("global", "nearby", "local", "whisper", "zone", "area"):
+        if channel not in ("global", "nearby", "local", "whisper", "zone", "area", "shout"):
             if msg_type in (ClientMessageType.SAY, "say"):
                 channel = "nearby"
             else:
@@ -1370,6 +1447,8 @@ async def handle_message(
             channel = "nearby"
         if channel == "area":
             channel = "zone"
+        if channel == "shout":
+            channel = "global"
         # chat with channel=whisper and `to` name/id → private path
         # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
         if channel == "whisper":
@@ -1378,7 +1457,11 @@ async def handle_message(
                 data.get("to_id") or data.get("player_id") or data.get("id")
             )
             if target_id is None and isinstance(target_name, str) and target_name.strip():
-                target_id = manager.find_id_by_name(target_name)
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
             if target_id is None and not (
                 isinstance(target_name, str) and target_name.strip()
             ):
@@ -1424,6 +1507,7 @@ async def handle_message(
             )
             delivered = await manager.send(target_id, whisper_msg)
             if not delivered:
+                manager.refund_chat(character_id)
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
             outbound.append(whisper_msg)
@@ -1677,21 +1761,8 @@ async def handle_message(
                     end_payload["gold_lost"] = int(char.pop("gold_lost", 0) or 0)
                     end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
                 outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
+                await _announce_combat_outcome(character_id, str(battle.outcome))
                 if battle.outcome == "defeat":
-                    hero = (manager.get_meta(character_id) or {}).get("name") or "Hero"
-                    await manager.broadcast_nearby(
-                        character_id,
-                        msg(
-                            ServerMessageType.CHAT,
-                            player_id=character_id,
-                            name="System",
-                            text=f"{hero} was defeated!",
-                            channel="system",
-                            system=True,
-                        ),
-                        include_self=True,
-                        respect_ignore=False,
-                    )
                     aoi_msgs = await manager.publish_move(
                         character_id, SPAWN_X, SPAWN_Y, seq=None
                     )
@@ -1875,6 +1946,14 @@ async def handle_message(
                 err["cost"] = bought["cost"]
             if bought.get("gold") is not None:
                 err["gold"] = bought["gold"]
+            # Bag-full paths: include current bag snapshot for client tips
+            if reason in ("stack full", "inventory full"):
+                try:
+                    inv_snap = await _inventory_msg(character_id)
+                    if inv_snap.get("bag"):
+                        err["bag"] = inv_snap["bag"]
+                except Exception:
+                    pass
             outbound.append(err)
             return character_id, user_id, outbound, None
         inv = await _inventory_msg(character_id)

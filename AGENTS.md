@@ -12,11 +12,11 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who/players/near/zone + idle roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat · zone on presence · `/players` · `/near` · `/zone` · auth welcome | Binary protocol |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore/roll/counts, who/players/near/zone + idle roster + session_id | Multi-map worlds |
+| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.49` (`server/config.py` → `VERSION`) · **209** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.54` (`server/config.py` → `VERSION`) · **232** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -136,7 +136,7 @@ All messages are JSON objects with a `type` string.
 
 | type | Purpose |
 |:-----|:--------|
-| `auth_ok` / `auth_fail` | Session (`session_id`, `online`, optional `welcome` on success) |
+| `auth_ok` / `auth_fail` | Session (`session_id`, `online`, `welcome`, `ignores`, `last_whisper`, `repel`/`radiant` on success) |
 | `world_state` | `players`, `map`, optional `you` (`x`/`y`/`zone`), `online`, `repel`, `radiant`, `zone` (on auth + sync) |
 | `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `zone`, `duplicate`/`reason` |
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
@@ -235,11 +235,25 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 68. Defeat broadcasts nearby **system** chat `"{name} was defeated!"` (both combat end paths).
 69. Reserved hero names include god/null/npc/staff/… (spoof system identity).
 70. `inventory_update` includes `bag: {used, max_slots, max_stack}` for client UI.
-71. Whisper: `send()` failure → `player not online` (no self-echo / no reply peer note).
+71. Whisper: `send()` failure → `player not online` (no self-echo / no reply peer note) + **`refund_chat`** so rate is not burned.
 72. `sync` / join `world_state`: `zones`, `roster`, `nearby_count`, `session_id` for multiplayer resync.
 73. `/roll` · `/dice` (msg `roll`/`dice`/`d100`) → nearby system 1dN (default 100); chat-rate limited.
 74. Combat start → nearby system `"{name} is fighting!"` (not to self).
 75. `discard` / `drop` destroys bag items (not equipped; blocked in combat) so full bags can free slots.
+76. `disconnect(reason=…)` — idle kicks use `reason=idle` on `player_left`.
+77. Combat end nearby system: victory / fled / defeat via `_announce_combat_outcome`.
+78. `/counts` · `/census` (msg `counts`/`census`/`population`) — online + zone totals, no full roster.
+79. `find` results include `zones` for multiplayer overview.
+80. Inn: `rest` with `preview`/`quote` returns cost without charging; client R quotes then confirms.
+81. Buy `stack full` / `inventory full` errors may include `bag` snapshot for UI.
+82. `resolve_live_name`: exact match, else unique 2+ char prefix; ambiguous → `name ambiguous` (whisper/look/ignore).
+83. `player_left` includes `zone` when known; `auth_ok` adds `nearby_count` + `zones`.
+84. `look` card always includes **zone** (coords only when nearby).
+85. Presence payloads carry **`session_id`**: `player_joined`, `player_moved`, `player_left`, `player_update` (reconnect hygiene).
+86. Join path: `auth_ok` + first `world_state` include **`ignores`**, **`last_whisper`**, `repel`/`radiant` (soft-grace restore to client).
+87. `manager.refund_chat(cid)` clears `last_chat_at` after failed multiplayer delivery.
+88. Combat soft-reconnect: after `connect`, if `in_combat` → `publish_status(..., pulse_online=True)`.
+89. `player_left` on disconnect includes `session_id` from leaving meta when present.
 
 ## Tests (mandatory for your changes)
 
@@ -288,6 +302,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0546` | bag stack/slot caps; defeat system chat |
 | `tests.test_features_v0547` | bag meta on inventory; reserved God/null/NPC; empty chat no rate burn |
 | `tests.test_mp_expand_v0548` | whisper send fail-closed; sync zones/roster; /roll; combat engage chat |
+| `tests.test_features_v0549` | discard bag items; free slot; combat block |
+| `tests.test_mp_expand_v0550` | /counts census; combat victory/fled notices; idle leave reason; find zones |
+| `tests.test_features_v0551` | inn rest preview; buy bag-full error bag snapshot |
+| `tests.test_mp_expand_v0552` | unique name prefix whisper; ambiguous; leave zone; auth nearby/zones |
+| `tests.test_adversarial_v0553` | look zone when far; look ambiguous prefix; empty chat then real chat |
+| `tests.test_mp_reliability_v0554` | session_id on presence; chat refund; soft-grace ignores/last_whisper on auth |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |

@@ -48,7 +48,7 @@ async def kick_idle() -> int:
                     )
                     await db.commit()
             # disconnect() already notifies AOI peers with player_left — no global double-send
-            left = await manager.disconnect(cid)
+            left = await manager.disconnect(cid, reason="idle")
             if left is not None:
                 n += 1
         except Exception as exc:

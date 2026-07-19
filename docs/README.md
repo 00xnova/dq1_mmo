@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.49** (2026-07-19) · suite green **209** tests · `VERSION` in `server/config.py`  
+**Last docs refresh:** **v0.5.54** (2026-07-19) · suite green **232** tests · `VERSION` in `server/config.py`  
 **Rule:** humans never need protocol files; agents never treat README as the contract.
 
 ---
@@ -44,20 +44,15 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 **Covered for players (current):**
 
 - Install & quick start · overworld / combat / inventory keys
-- Zones (town / field / dungeon) · zone badge · zone-enter chat notes
-- **`/zone`** shows **who is in your area** + population by zone type
-- Bag limits: **12** kinds · **8** each · title shows **used/max** · **D** discard to free space
-- Nearby system lines: **defeated**, **entered zone**, **is fighting!**, level-ups
-- **`/roll`** · **`/dice`** nearby dice (default d100; e.g. `/roll 20`)
-- Shop buy/sell gold toasts · need-N-G when short · helmets · inn · field magic
-- Social: `/say` · `/g` · `/w` · `/z` · `/emote` · `/find` · `/who` · `/players` · `/near` · `/zone` · `/ignore` · `/r` · `/status` · `/roll`
-- Join welcome toast with online count
-- Chat & emotes always appear once for you
-- **`/ignores`** keeps names if someone goes offline
-- High-tier shop gear: Broad Sword · Half/Full Plate · Silver Shield · helmets
-- Shop **town only** and **not in combat**
-- Status sheet: **own** position + zone + repel/light; roster shows **zone type** only (never others’ coords)
-- CC0 pixel art + optional SVG companions under `client/assets/`
+- Zones · `/zone` · `/counts` · bag limits · **D** discard · inn **R** quote then confirm
+- Whisper / look / ignore: full name or **unique prefix** (ambiguous names rejected)
+- Nearby system lines: fight start · victory · flee · defeat · zone enter · level-ups · idle leave
+- Social: `/say` `/g` `/w` `/z` `/roll` `/find` `/who` `/near` `/ignore` `/r` `/inn` …
+- Shop town-only · not in combat · gold toasts · high-tier gear
+- Join welcome may mention nearby heroes
+- Soft reconnect: mute list, last whisper partner, and buffs survive a brief disconnect
+- Failed private messages do not block your next chat line
+- CC0 pixel art + SVG companions
 
 ---
 
@@ -69,12 +64,10 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 
 **Belongs only in AGENTS.md** (do not paste into README / HUMAN):
 
-- Full WebSocket message catalogs (client ↔ server)
-- Reliability rules (AOI, soft grace, rates, reconnect, bag caps, discard, whisper delivery, …)
+- Full WebSocket message catalogs
+- Reliability rules (AOI, soft grace, rates, `resolve_live_name`, bag caps, …)
 - Test module matrix (`server/tests/run_tests.py`)
 - Hot paths, architecture, coding constraints
-
-Agents: prefer AGENTS.md over guessing; treat `plan.md` as history only.
 
 ---
 
@@ -83,21 +76,16 @@ Agents: prefer AGENTS.md over guessing; treat `plan.md` as history only.
 | Do | Don’t |
 |:---|:------|
 | Put install & controls in README / HUMAN | Dump WS protocol tables into README or HUMAN |
-| Put protocol, tests, agent constraints in `AGENTS.md` | Put player install steps only in AGENTS |
-| Treat `plan.md` as history | Treat `plan.md` as the current backlog |
+| Put protocol, tests, constraints in `AGENTS.md` | Put player install only in AGENTS |
 | Bump `VERSION` with user-visible changes | Leave badges / HUMAN version out of date |
-| Link across audiences | Mix agent-only tables into player prose |
-| Keep slash-commands accurate in HUMAN | Claim unfinished features as shipped |
-| Use plain language in README “What’s new” | Leak internal IDs, message types, or test matrices to players |
+| Use plain language in README “What’s new” | Leak message types or test matrices to players |
 
 ---
 
 ## When the game changes
 
-Checklist for contributors (human or agent):
-
 - [ ] `server/config.py` → `VERSION`
-- [ ] [README.md](../README.md) version badge · features · controls · test count
+- [ ] [README.md](../README.md) badges · features · controls · test count
 - [ ] [HUMAN.md](HUMAN.md) if player-facing
 - [ ] [AGENTS.md](../AGENTS.md) if protocol / tests / reliability changed
 - [ ] This index “last refresh” line

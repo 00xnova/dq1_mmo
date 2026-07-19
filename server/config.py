@@ -60,7 +60,7 @@ STARTING_GOLD = os.getenv("STARTING_GOLD", "300")
 # Combat reconnect grace (seconds) — battle kept if player returns in time
 COMBAT_GRACE_SECONDS = float(os.getenv("COMBAT_GRACE_SECONDS", "60"))
 
-VERSION = "0.5.49"
+VERSION = "0.5.54"
 
 
 def new_secret_hint() -> str:

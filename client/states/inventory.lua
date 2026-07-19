@@ -86,9 +86,14 @@ function Inventory:enter()
     if data.cost and r == "not enough gold" then
       r = string.format("not enough gold (need %s G)", tostring(data.cost))
     elseif r == "stack full" then
-      r = "stack full (max 8 of that item) — sell or discard"
+      local bag = data.bag or self.bag
+      local mx = bag and bag.max_stack or 8
+      r = string.format("stack full (max %s) — sell or discard (D)", tostring(mx))
     elseif r == "inventory full" then
-      r = "bag full (12 kinds) — sell or discard (D)"
+      local bag = data.bag or self.bag
+      local u = bag and bag.used or "?"
+      local m = bag and bag.max_slots or 12
+      r = string.format("bag full (%s/%s) — sell or discard (D)", tostring(u), tostring(m))
     end
     self.status = r
     UI.toast(r, "danger")

@@ -9,7 +9,7 @@ For **people**: players, operators, and human contributors.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
-**Version:** 0.5.49 · **209** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.54 · **232** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -22,7 +22,7 @@ A multiplayer **Dragon Quest I–style** game:
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
 - Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · fights · defeats)
-- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/roll`**, **`/ignore`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
+- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
 - Join toast with **online count** when you enter the world
 - Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each · **D** discard), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
@@ -54,8 +54,10 @@ Hero select: **N** new · **D** delete (confirm **Y**) · max 3 heroes.
 Your current zone shows as a **ZONE** badge on the HUD and on the **F** status sheet.  
 Use **`/zone`** (or **`/where`**) anytime for your area, map position, **who is in the same zone**, and how many heroes are in town / field / dungeon.  
 When someone nearby walks from town → field (or similar), you may see a short **system** line: *“Name entered the field.”*  
-When a nearby hero starts a fight: *“Name is fighting!”* · if they fall: *“Name was defeated!”*  
-**`/who`** (or **O**) also shows online + zone counts.
+When a nearby hero starts a fight: *“Name is fighting!”*  
+Battle ends nearby: *“was victorious!”* · *“fled battle!”* · *“was defeated!”*  
+Someone AFK long enough may show as **went idle** when they leave your view.  
+**`/who`** (or **O**) and **`/counts`** show online + zone totals.
 
 ---
 
@@ -70,10 +72,11 @@ Menu: **Attack** · **Flee** · **Spells** · **Herb (H)**.
 
 ## Inn
 
-Press **R** in town for full HP/MP.
+Press **R** in town to **see the inn cost**, then **R again** (within a few seconds) to rest and pay.
 
-- Cost: **max(4, level × 4)** gold  
-- If you can’t afford it, the client shows how much you need
+- Cost: **max(4, level × 4)** gold (free if already full HP/MP)  
+- If you can’t afford it, the quote shows how much you need  
+- Slash: **`/inn`** or **`/rest`** also requests a cost quote
 
 ---
 
@@ -127,10 +130,11 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **Y** | Open chat (nearby) |
 | **/say message** · **/s message** | Nearby chat (same as **Y**) |
 | **/g message** · **/global message** | Global chat |
-| **/w Name message** | Whisper (private); also `/tell` |
+| **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
 | **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
+| **/counts** · **/census** | Online + nearby + zone population totals |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
 | **/status** or **/me** | Same status sheet via chat |
@@ -159,7 +163,9 @@ Nearby list still shows coordinates for people you can see.
 Roster updates also keep **town / field / dungeon** counts so you can see where people are gathering.
 
 Your own chat and emotes always appear once in your log (global, nearby, and zone).  
-Failed whispers (yourself offline, etc.) do not block the next message you try to send.
+Failed whispers (yourself, offline targets, or a dropped connection) do not block the next message you try to send.
+
+**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.
 
 Chat tags in the log:
 
@@ -171,7 +177,7 @@ Chat tags in the log:
 | `[w]` | Whisper |
 | `[*]` | System (nearby level-up · zone-enter) |
 
-Only **online** characters can be whispered (by name: `/w Name message`).  
+Only **online** characters can be whispered (`/w Name message`). A **unique prefix** of the name is enough; if several players match, you get an error instead of a wrong target.  
 **`/find`** never reveals map positions — only names, levels, combat flag, and **zone type** (town/field/dungeon).  
 Filter with **`zone:town`**, **`zone:field`**, or **`zone:dungeon`** (also `in:field`).  
 Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names are rejected with an error.
@@ -183,7 +189,7 @@ Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names a
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /find · /who · /players · /near · /zone · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /say · /g · /roll · /counts · /find · /who · /players · /near · /zone · /ignore · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · D discard · U unequip · Tab shop |
 
@@ -244,7 +250,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 209 passed
+# expect: 232 passed
 ```
 
 ---
@@ -259,6 +265,6 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/find` `/who` `/players` `/near` `/zone` `/ignore` `/status`) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/counts` `/find` `/who` `/players` `/near` `/zone` `/ignore` `/status`) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)
