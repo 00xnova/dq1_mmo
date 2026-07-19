@@ -49,6 +49,8 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
         "level": meta["level"],
         "in_combat": bool(meta.get("in_combat")),
         "idle": _is_idle(meta),
+        # Manual /afk vs soft-idle — peers need the explicit flag for badges
+        "afk": bool(meta.get("afk")),
     }
     z = _zone_of(meta)
     if z:
@@ -73,6 +75,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
 
     Zone name is OK (town/field/dungeon) without x/y — helps social find/who.
     session_id helps clients reconcile reconnects without map coords.
+    afk is manual /afk (idle may also be true from soft timeout).
     """
     card = {
         "id": meta["id"],
@@ -80,6 +83,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
         "level": meta["level"],
         "in_combat": bool(meta.get("in_combat")),
         "idle": _is_idle(meta),
+        "afk": bool(meta.get("afk")),
     }
     zone = _zone_of(meta)
     if zone:
@@ -296,7 +300,9 @@ class ConnectionManager:
             for oid in notify_ids:
                 await self.send(oid, leave_msg)
         if left_meta is not None:
-            await self.broadcast_online()
+            # Force roster pulse on leave — debounced pulse can hide departures
+            # under reconnect storms (multiplayer reliability).
+            await self.broadcast_online_force()
         return left_meta
 
     def is_online(self, character_id: int) -> bool:
@@ -697,6 +703,7 @@ class ConnectionManager:
             "y": me["y"],
             "in_combat": bool(me.get("in_combat")),
             "idle": _is_idle(me),
+            "afk": bool(me.get("afk")),
         }
         z = _zone_of(me)
         if z:
@@ -870,6 +877,7 @@ class ConnectionManager:
                     "level": other_pub["level"],
                     "in_combat": other_pub["in_combat"],
                     "idle": bool(other_pub.get("idle")),
+                    "afk": bool(other_pub.get("afk")),
                 }
                 if other_pub.get("zone"):
                     join_self["zone"] = other_pub["zone"]
@@ -895,6 +903,9 @@ class ConnectionManager:
                     oz = _zone_of(other)
                     if oz:
                         leave_self["zone"] = oz
+                    osid = other.get("session_id")
+                    if osid is not None:
+                        leave_self["session_id"] = osid
                 to_self.append(leave_self)
 
             stay_ids = list(stayed)
@@ -913,6 +924,7 @@ class ConnectionManager:
             "level": me_pub["level"],
             "in_combat": me_pub["in_combat"],
             "idle": bool(me_pub.get("idle")),
+            "afk": bool(me_pub.get("afk")),
         }
         if me_pub.get("zone"):
             join_them["zone"] = me_pub["zone"]
@@ -929,6 +941,8 @@ class ConnectionManager:
         }
         if me_pub.get("zone"):
             leave_them["zone"] = me_pub["zone"]
+        if me_sid is not None:
+            leave_them["session_id"] = me_sid
         for oid, name in leave_peer:
             await self.send(oid, leave_them)
 
@@ -942,6 +956,7 @@ class ConnectionManager:
             "level": me_pub["level"],
             "in_combat": me_pub["in_combat"],
             "idle": bool(me_pub.get("idle")),
+            "afk": bool(me_pub.get("afk")),
         }
         if me_pub.get("zone"):
             move_msg["zone"] = me_pub["zone"]

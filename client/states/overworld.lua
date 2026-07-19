@@ -377,6 +377,26 @@ local function bind_handlers(self)
     end
   end)
 
+  Network.on("gold", function(data)
+    UI.toast(tostring(data.message or ("Gold: " .. tostring(data.gold or "?"))), "info")
+  end)
+
+  Network.on("vitals", function(data)
+    UI.toast(tostring(data.message or "Vitals updated"), "info")
+  end)
+
+  Network.on("xp", function(data)
+    UI.toast(tostring(data.message or "XP updated"), "info")
+  end)
+
+  Network.on("lastwhisper", function(data)
+    UI.toast(tostring(data.message or "No one to reply to yet."), "info")
+  end)
+
+  Network.on("spells", function(data)
+    UI.toast(tostring(data.message or "Spells updated"), "info")
+  end)
+
   Network.on("ignore", function(data)
     local act = data.action or "?"
     if act == "list" then
@@ -451,6 +471,7 @@ local function bind_handlers(self)
       level = data.level or (existing and existing.level) or 1,
       in_combat = data.in_combat and true or false,
       idle = data.idle and true or false,
+      afk = data.afk and true or false,
       zone = data.zone or (existing and existing.zone),
     }
     if not existing then
@@ -478,8 +499,9 @@ local function bind_handlers(self)
       level = data.level,
       in_combat = data.in_combat,
       idle = data.idle,
+      afk = data.afk,
     })
-    -- Keep online roster combat/idle flags fresh without a full /who
+    -- Keep online roster combat/idle/AFK flags fresh without a full /who
     if type(self.roster) == "table" and data.player_id then
       for _, r in ipairs(self.roster) do
         if r.id == data.player_id or r.name == data.name then
@@ -488,6 +510,9 @@ local function bind_handlers(self)
           end
           if data.idle ~= nil then
             r.idle = data.idle
+          end
+          if data.afk ~= nil then
+            r.afk = data.afk
           end
           if data.level ~= nil then
             r.level = data.level
@@ -510,12 +535,16 @@ local function bind_handlers(self)
       table.remove(self.chat_log, 1)
     end
     if data.channel == "whisper" then
-      -- Track peer for /r reply (incoming whispers only)
+      -- Own echo vs incoming: don't claim "Whisper from yourself"
       local me = World.local_player and World.local_player.name
-      if data.name and data.name ~= me and data.name ~= "System" then
+      local is_self = data.name and me and data.name == me
+      if not is_self and data.name and data.name ~= "System" then
         self.last_whisper_from = data.name
+        UI.toast("Whisper from " .. tostring(data.name), "info")
+      elseif is_self then
+        local tip = data.target_afk and " (they are AFK)" or ""
+        UI.toast("Whisper to " .. tostring(data.to or "?") .. tip, "info")
       end
-      UI.toast("Whisper from " .. tostring(data.name or "?"), "info")
     end
   end)
 
@@ -534,7 +563,7 @@ local function bind_handlers(self)
       loc = loc .. " [" .. tostring(p.zone) .. "]"
     end
     local combat = p.in_combat and " ⚔" or ""
-    local idle = p.idle and " (AFK)" or ""
+    local idle = (p.afk or p.idle) and " (AFK)" or ""
     UI.toast(
       string.format("%s  Lv%d%s%s%s", tostring(p.name), tonumber(p.level) or 1, combat, idle, loc),
       "info"
@@ -647,6 +676,12 @@ local function bind_handlers(self)
       local g = tonumber(data.sold.gold_gained) or 0
       local n = data.sold.item_name or data.sold.item_id or "item"
       UI.toast(string.format("Sold %s +%d G", tostring(n), g), "ok")
+    elseif data.equipped then
+      UI.toast(tostring(data.message or ("Equipped " .. tostring(data.equipped.item_id or "?"))), "ok")
+    elseif data.unequipped then
+      UI.toast(tostring(data.message or ("Unequipped " .. tostring(data.unequipped.slot or "?"))), "ok")
+    elseif data.message then
+      UI.toast(tostring(data.message), "ok")
     end
     if data.character then
       Session.character = data.character
@@ -1007,6 +1042,30 @@ function Overworld:keypressed(key)
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
+        local wants_gold = text:match("^[/%!]gold%s*$")
+          or text:match("^[/%!]money%s*$")
+          or text:match("^[/%!]wallet%s*$")
+        local wants_hp = text:match("^[/%!]hp%s*$")
+          or text:match("^[/%!]mp%s*$")
+          or text:match("^[/%!]vitals%s*$")
+          or text:match("^[/%!]life%s*$")
+        local wants_xp = text:match("^[/%!]xp%s*$")
+          or text:match("^[/%!]exp%s*$")
+          or text:match("^[/%!]level%s*$")
+          or text:match("^[/%!]experience%s*$")
+        local wants_spells = text:match("^[/%!]spells%s*$")
+          or text:match("^[/%!]magic%s*$")
+        local wants_bag = text:match("^[/%!]bag%s*$")
+          or text:match("^[/%!]inv%s*$")
+          or text:match("^[/%!]items%s*$")
+          or text:match("^[/%!]inventory%s*$")
+        local wants_last = text:match("^[/%!]last%s*$")
+          or text:match("^[/%!]lastwhisper%s*$")
+          or text:match("^[/%!]last_whisper%s*$")
+          or text:match("^[/%!]reply_to%s*$")
+        local unequip_slot = text:match("^[/%!]unequip%s+(%S+)$")
+          or text:match("^[/%!]takeoff%s+(%S+)$")
+          or text:match("^[/%!]remove%s+(%S+)$")
         local block_name = text:match("^[/%!]block%s+(%S+)$")
         local unblock_name = text:match("^[/%!]unblock%s+(%S+)$")
         local wants_who = text:match("^[/%!]who%s*$")
@@ -1078,6 +1137,20 @@ function Overworld:keypressed(key)
           Network.send({ type = "time" })
         elseif wants_motd then
           Network.send({ type = "motd" })
+        elseif wants_gold then
+          Network.send({ type = "gold" })
+        elseif wants_hp then
+          Network.send({ type = "hp" })
+        elseif wants_xp then
+          Network.send({ type = "xp" })
+        elseif wants_spells then
+          Network.send({ type = "spells" })
+        elseif wants_bag then
+          Network.send({ type = "inventory" })
+        elseif wants_last then
+          Network.send({ type = "lastwhisper" })
+        elseif unequip_slot and unequip_slot ~= "" then
+          Network.send({ type = "unequip", slot = unequip_slot:lower() })
         elseif wants_back then
           Network.send({ type = "back" })
         elseif wants_afk then

@@ -10,12 +10,12 @@ For **people**: players, operators, and human contributors.
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.60-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-269-059669?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.66-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-301-059669?style=flat-square" />
   <img alt="audience" src="https://img.shields.io/badge/audience-humans-2563eb?style=flat-square" />
 </p>
 
-**Version:** 0.5.60 · **269** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.66 · **301** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -28,7 +28,7 @@ A multiplayer **Dragon Quest I–style** game:
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
 - Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · fights · defeats)
-- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, **`/version`** · **`/time`**, online roster (idle/AFK clears when you chat), status sheet (**F** / `/status` / `/whoami`)
+- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, **`/last`** (who reply targets), **`/hp`** · **`/xp`**, **`/unequip`**, **`/version`** · **`/time`**, online roster (idle/AFK on lists · clears when you chat), status sheet (**F** / `/status` / `/whoami`)
 - Join toast with **online count** when you enter the world
 - Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each · **D** discard), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
@@ -162,6 +162,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/near** · **/here** | List heroes nearby (view range) |
 | **/zone** · **/where** · **/whereami** · **/coords** | Your zone, map position, **who is here**, population by area |
 | **/stats** · **/sheet** | Same as **/status** |
+| **/gold** · **/money** | How much gold you have |
+| **/spells** · **/magic** | Known battle + field spells |
+| **/bag** · **/inv** · **/items** | Open bag (same as **I**) |
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* · `/players` same as `/who` |
@@ -264,7 +267,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 269 passed
+# expect: 301 passed
 ```
 
 ---
@@ -278,7 +281,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.60** · **269** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.66** · **301** tests).
 
 | Do | Don’t |
 |:---|:------|

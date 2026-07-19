@@ -53,6 +53,33 @@ def _format_uptime(seconds: int) -> str:
     return f"{sec}s"
 
 
+def _parse_positive_qty(raw: Any) -> int | None:
+    """Parse buy/sell/discard quantity. Returns int >= 1 or None if invalid.
+
+    Rejects bools and non-integer floats (2.5 must not silently become 2).
+    Digit strings like \"2\" are accepted.
+    """
+    if isinstance(raw, bool):
+        return None
+    if isinstance(raw, int):
+        return raw if raw >= 1 else None
+    if isinstance(raw, float):
+        if not math.isfinite(raw) or not raw.is_integer():
+            return None
+        q = int(raw)
+        return q if q >= 1 else None
+    if isinstance(raw, str):
+        s = raw.strip()
+        if not s or not s.lstrip("-").isdigit():
+            return None
+        try:
+            q = int(s)
+        except ValueError:
+            return None
+        return q if q >= 1 else None
+    return None
+
+
 async def _inventory_msg(character_id: int) -> dict:
     from game.item_manager import MAX_BAG_SLOTS, MAX_STACK_QTY
 
@@ -332,6 +359,8 @@ async def handle_message(
                     "y": meta["y"] if meta else None,
                     "in_combat": bool(meta.get("in_combat")) if meta else False,
                     "idle": _is_idle(meta) if meta else False,
+                    "afk": bool((meta or {}).get("afk")),
+                    "session_id": manager.session_id(character_id),
                     "repel": manager.repel_remaining(character_id),
                     "radiant": manager.radiant_remaining(character_id),
                     "zone": you_zone,
@@ -473,6 +502,7 @@ async def handle_message(
             "level": tmeta.get("level"),
             "in_combat": bool(tmeta.get("in_combat")),
             "nearby": is_near,
+            "afk": bool(tmeta.get("afk")),
         }
         # Zone type is OK without coords (same privacy model as who/find)
         try:
@@ -492,6 +522,9 @@ async def handle_message(
             card["idle"] = _is_idle(tmeta)
         except Exception:
             card["idle"] = False
+        sid = tmeta.get("session_id")
+        if sid is not None:
+            card["session_id"] = sid
         outbound.append(msg(ServerMessageType.LOOK, player=card))
         return character_id, user_id, outbound, None
 
@@ -527,6 +560,10 @@ async def handle_message(
             int(char.get("level") or 1),
         )
         bonuses = equipment_bonuses(char)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        you_afk = bool(meta.get("afk")) if meta else False
+        you_idle = _idle_chk(meta) if meta else False
         outbound.append(
             msg(
                 ServerMessageType.STATUS,
@@ -559,8 +596,128 @@ async def handle_message(
                     "repel": manager.repel_remaining(character_id),
                     "radiant": manager.radiant_remaining(character_id),
                     "session_id": manager.session_id(character_id),
+                    "afk": you_afk,
+                    "idle": you_idle,
                 },
                 online=len(manager.online_ids()),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Gold only (lightweight wallet peek) ---
+    if msg_type in ("gold", "money", "wallet"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        gold = char.get("gold")
+        outbound.append(
+            msg(
+                "gold",
+                gold=gold,
+                message=f"You have {gold} G.",
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- HP / MP vitals peek ---
+    if msg_type in ("hp", "mp", "vitals", "life"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        # Prefer live combat HP/MP when fighting
+        battle = combat_engine.get(character_id)
+        if battle is not None and battle.outcome == "ongoing":
+            chp = int(battle.hero.get("hp") or 0)
+            cmp_ = int(battle.hero.get("mp") or 0)
+            mhp = int(battle.hero.get("max_hp") or char.get("max_hp") or 0)
+            mmp = int(battle.hero.get("max_mp") or char.get("max_mp") or 0)
+        else:
+            chp = int(char.get("current_hp") or 0)
+            cmp_ = int(char.get("current_mp") or 0)
+            mhp = int(char.get("max_hp") or 0)
+            mmp = int(char.get("max_mp") or 0)
+        outbound.append(
+            msg(
+                "vitals",
+                hp=chp,
+                max_hp=mhp,
+                mp=cmp_,
+                max_mp=mmp,
+                in_combat=bool(
+                    battle is not None and battle.outcome == "ongoing"
+                ),
+                message=f"HP {chp}/{mhp} · MP {cmp_}/{mmp}",
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Level / XP peek ---
+    if msg_type in ("xp", "exp", "level", "experience"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        from game.progression import xp_to_next_level
+
+        lvl = int(char.get("level") or 1)
+        xp = int(char.get("experience") or 0)
+        xp_prog = xp_to_next_level(xp, lvl)
+        to_next = xp_prog.get("xp_to_next")
+        outbound.append(
+            msg(
+                "xp",
+                level=lvl,
+                experience=xp,
+                xp_progress=xp_prog,
+                message=(
+                    f"Level {lvl} · {xp} XP"
+                    + (
+                        f" · {to_next} to next"
+                        if to_next is not None and not xp_prog.get("max_level")
+                        else ""
+                    )
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Spells list (battle + field known at current level) ---
+    if msg_type in ("spells", "magic", "spell_list"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        lvl = int(char.get("level") or 1)
+        battle = battle_spells_at(lvl)
+        field = field_spells_at(lvl)
+        outbound.append(
+            msg(
+                "spells",
+                battle=battle,
+                field=field,
+                level=lvl,
+                message=(
+                    f"Battle: {', '.join(battle) or 'none'} · "
+                    f"Field: {', '.join(field) or 'none'}"
+                ),
             )
         )
         return character_id, user_id, outbound, None
@@ -586,12 +743,18 @@ async def handle_message(
                     {"cmd": "counts", "hint": "/counts · /census — online + zone totals"},
                     {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
-                    {"cmd": "inventory", "hint": "I — bag (12 stacks · max 8) / shop"},
+                    {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
+                    {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
+                    {"cmd": "hp", "hint": "/hp · /vitals — HP/MP peek"},
+                    {"cmd": "xp", "hint": "/xp · /level — level + XP to next"},
+                    {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
+                    {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
                     {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
+                    {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
                     {"cmd": "version", "hint": "/version · /about — server version"},
                     {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
@@ -654,12 +817,59 @@ async def handle_message(
             manager.touch(character_id)
         await manager.publish_status(character_id, pulse_online=True)
         meta = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
         outbound.append(
             msg(
                 "afk",
                 afk=want_afk,
-                idle=bool(meta and (meta.get("afk") or False)),
+                idle=_idle_chk(meta) if meta else want_afk,
+                session_id=manager.session_id(character_id),
                 message=("You are now AFK." if want_afk else "Welcome back."),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Last whisper peer (multiplayer /r target after soft reconnect) ---
+    if msg_type in (
+        "lastwhisper",
+        "last_whisper",
+        "last",
+        "reply_to",
+        "who_last",
+    ):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        lid, lname = manager.last_whisper_from(character_id)
+        peer = None
+        online = False
+        peer_afk = False
+        if lid is not None:
+            online = manager.is_online(lid)
+            pmeta = manager.get_meta(lid) if online else None
+            peer_afk = bool(pmeta.get("afk")) if pmeta else False
+            peer = {
+                "id": lid,
+                "name": lname or (pmeta or {}).get("name"),
+                "online": online,
+                "afk": peer_afk,
+            }
+            psid = (pmeta or {}).get("session_id") if pmeta else None
+            if psid is not None:
+                peer["session_id"] = psid
+        outbound.append(
+            msg(
+                "lastwhisper",
+                peer=peer,
+                online=online,
+                message=(
+                    f"Last whisper: {peer['name']}"
+                    + (" (online)" if online else " (offline)" if peer else "")
+                    if peer
+                    else "No one to reply to yet."
+                ),
             )
         )
         return character_id, user_id, outbound, None
@@ -1589,6 +1799,10 @@ async def handle_message(
             to=tname,
             to_id=target_id,
         )
+        sid = manager.session_id(character_id)
+        if sid is not None:
+            whisper_msg["session_id"] = sid
+        target_afk = bool((tmeta or {}).get("afk"))
         # Deliver to target; fail closed if socket is dead (don't echo a lie)
         delivered = await manager.send(target_id, whisper_msg)
         if not delivered:
@@ -1596,7 +1810,11 @@ async def handle_message(
             manager.refund_chat(character_id)
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
-        outbound.append(whisper_msg)
+        # Sender echo may note AFK so UI can show "they may not reply"
+        echo = dict(whisper_msg)
+        if target_afk:
+            echo["target_afk"] = True
+        outbound.append(echo)
         # Target remembers us for their /r; we remember them if they reply later
         manager.note_whisper_from(target_id, character_id, name)
         manager.note_whisper_from(character_id, target_id, tname)
@@ -1691,12 +1909,19 @@ async def handle_message(
                 to=tname,
                 to_id=target_id,
             )
+            sid_w = manager.session_id(character_id)
+            if sid_w is not None:
+                whisper_msg["session_id"] = sid_w
+            target_afk_w = bool((tmeta or {}).get("afk"))
             delivered = await manager.send(target_id, whisper_msg)
             if not delivered:
                 manager.refund_chat(character_id)
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
-            outbound.append(whisper_msg)
+            echo_w = dict(whisper_msg)
+            if target_afk_w:
+                echo_w["target_afk"] = True
+            outbound.append(echo_w)
             manager.note_whisper_from(target_id, character_id, name)
             manager.note_whisper_from(character_id, target_id, tname)
             if was_idle_w:
@@ -1733,6 +1958,9 @@ async def handle_message(
             channel=channel,
             zone=zone_name if channel == "zone" else None,
         )
+        sid_c = manager.session_id(character_id)
+        if sid_c is not None:
+            chat_msg["session_id"] = sid_c
         # Peers via broadcast (exclude self); self always via outbound once
         # so local UI never loses the echo if a peer-send races/fails.
         if channel == "nearby":
@@ -1882,6 +2110,9 @@ async def handle_message(
         )
         if emote_zone in ("town", "field", "dungeon"):
             emote_msg["zone"] = emote_zone
+        sid_e = manager.session_id(character_id)
+        if sid_e is not None:
+            emote_msg["session_id"] = sid_e
         # Peers via AOI; self via outbound (reliable single echo)
         await manager.broadcast_nearby(
             character_id, emote_msg, include_self=False, respect_ignore=True
@@ -2025,7 +2256,7 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Town inn (rest) ---
-    if msg_type in (ClientMessageType.REST, "rest", "inn"):
+    if msg_type in (ClientMessageType.REST, "rest", "inn", "sleep"):
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2074,7 +2305,11 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Inventory / shop / equip ---
-    if msg_type == ClientMessageType.INVENTORY:
+    if msg_type in (ClientMessageType.INVENTORY, "inventory", "bag", "inv", "items"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
@@ -2090,7 +2325,7 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
         return character_id, user_id, outbound, None
 
-    if msg_type == ClientMessageType.EQUIP:
+    if msg_type in (ClientMessageType.EQUIP, "equip"):
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2105,10 +2340,18 @@ async def handle_message(
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
-        outbound.append(await _inventory_msg(character_id))
+        inv = await _inventory_msg(character_id)
+        inv["equipped"] = {"slot": str(slot or ""), "item_id": str(item_id or "")}
+        inv["message"] = f"Equipped {item_id}."
+        outbound.append(inv)
         return character_id, user_id, outbound, None
 
-    if msg_type == ClientMessageType.UNEQUIP:
+    if msg_type in (
+        ClientMessageType.UNEQUIP,
+        "unequip",
+        "takeoff",
+        "remove",
+    ):
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
@@ -2117,12 +2360,25 @@ async def handle_message(
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
+        # Remember what was equipped for the toast (unequip mutates char)
+        from game.item_manager import SLOT_COLUMNS
+
+        prev_id = None
+        slot_s = str(slot or "")
+        col = SLOT_COLUMNS.get(slot_s)
+        if col:
+            prev_id = char.get(col)
         async with db_write() as db:
-            ok, reason = await unequip_item(db, char, str(slot or ""))
+            ok, reason = await unequip_item(db, char, slot_s)
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
-        outbound.append(await _inventory_msg(character_id))
+        inv = await _inventory_msg(character_id)
+        inv["unequipped"] = {"slot": slot_s, "item_id": prev_id}
+        inv["message"] = (
+            f"Unequipped {prev_id}." if prev_id else f"Unequipped {slot_s}."
+        )
+        outbound.append(inv)
         return character_id, user_id, outbound, None
 
     # Discard / drop from bag (destroy — free a slot when bag is full)
@@ -2138,14 +2394,8 @@ async def handle_message(
             raw_qty = data.get("qty")
         else:
             raw_qty = 1
-        try:
-            if isinstance(raw_qty, bool):
-                raise ValueError("bool qty")
-            qty = int(raw_qty)
-        except (TypeError, ValueError):
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        if qty < 1:
+        qty = _parse_positive_qty(raw_qty)
+        if qty is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
             return character_id, user_id, outbound, None
         if not item_id:
@@ -2185,14 +2435,8 @@ async def handle_message(
             raw_qty = data.get("qty")
         else:
             raw_qty = 1
-        try:
-            if isinstance(raw_qty, bool):
-                raise ValueError("bool qty")
-            buy_qty = int(raw_qty)
-        except (TypeError, ValueError):
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        if buy_qty < 1:
+        buy_qty = _parse_positive_qty(raw_qty)
+        if buy_qty is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
             return character_id, user_id, outbound, None
         char = await get_character(character_id)
@@ -2249,14 +2493,8 @@ async def handle_message(
             raw_qty = data.get("qty")
         else:
             raw_qty = 1
-        try:
-            if isinstance(raw_qty, bool):
-                raise ValueError("bool qty")
-            sell_qty = int(raw_qty)
-        except (TypeError, ValueError):
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        if sell_qty < 1:
+        sell_qty = _parse_positive_qty(raw_qty)
+        if sell_qty is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
             return character_id, user_id, outbound, None
         char = await get_character(character_id)

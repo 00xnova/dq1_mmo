@@ -16,11 +16,11 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore/roll/counts, who/players/near/zone + idle roster + session_id | Multi-map worlds |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.61` (`server/config.py` → `VERSION`) · **275** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.66` (`server/config.py` → `VERSION`) · **301** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -276,6 +276,17 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 105. `sync` world_state rehydrates `ignores`, `last_whisper`, and `you.{afk,idle,session_id,in_combat}`.
 106. `buy` quantity: never ignore client qty — `qty<1` → `bad quantity`; multi-buy supported (stack cap).
 107. Zone aliases: `whereami`/`coords`/`pos`/`position`; status aliases: `stats`/`sheet`.
+108. Quantity parse (`_parse_positive_qty`): reject bool + non-integer floats (2.5); accept ints, `2.0`, digit strings.
+109. `disconnect` uses `broadcast_online_force` so leave roster updates are not lost to debounce.
+110. Chat / whisper / emote stamp speaker `session_id`; look card includes `session_id` + `afk`; who.you includes `afk` + `session_id`.
+111. `status.you` includes `afk` + `idle` (was missing after /afk).
+112. Inventory aliases: `bag`/`inv`/`items`; `gold`/`money`/`wallet`; `spells`/`magic`/`spell_list`.
+113. `_online_card` / `_public_meta` / `player_update` / join / move include **`afk`** (manual flag, separate from soft `idle`).
+114. Whisper echo may set **`target_afk`** when recipient is AFK (delivery copy does not need it).
+115. `lastwhisper` / `last` / `reply_to` / `who_last` → last `/r` peer (online/afk/session when live); soft grace keeps peer.
+116. `player_left` (out_of_range) carries `session_id` when known (both sides).
+117. Lightweight peeks: `hp`/`mp`/`vitals`/`life` → `vitals`; `xp`/`exp`/`level`/`experience` → `xp` (uses combat HP when fighting).
+118. Equip/unequip return `inventory_update` with `equipped`/`unequipped` + `message`; unequip aliases `takeoff`/`remove`; rest alias `sleep`.
 
 ## Tests (mandatory for your changes)
 
@@ -337,6 +348,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_v0559` | sell qty=0/− not sell; multi-sell; bool qty rejected |
 | `tests.test_mp_reliability_v0560` | move clears AFK for peers; sync rehydrates ignores/last_whisper |
 | `tests.test_features_v0561` | buy qty=0; multi-buy; whereami/coords; stats/sheet aliases |
+| `tests.test_adversarial_v0562` | fractional qty rejected; int-float + digit-string qty ok |
+| `tests.test_mp_reliability_v0563` | force online on leave; session_id on chat/emote; look/who afk |
+| `tests.test_mp_reliability_v0565` | afk on presence/online; whisper target_afk; lastwhisper; soft-grace last peer |
+| `tests.test_features_v0566` | vitals/xp peeks; equip message; takeoff/remove; sleep; help cmds |
+| `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
