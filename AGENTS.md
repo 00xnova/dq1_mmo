@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.125` (`server/config.py` → `VERSION`) · **648** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.126` (`server/config.py` → `VERSION`) · **654** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.125** / **648** until the suite or `VERSION` changes.  
-Last **pushed** ship: `5fef9ab` / `cd07ecc` (**v0.5.125** mute list near/far).  
+Keep badges at **0.5.126** / **654** until the suite or `VERSION` changes.  
+Last **pushed** ship: `5fef9ab` / `69881fb` (v0.5.125). Shipping **0.5.126**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.125 / 648** · human Mute card · plain-language `/ignores` · protocol only here.
+Docs pass (**this run**): badges **0.5.126 / 654** · look handler extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -90,6 +90,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/_common.py` | Shared message helpers (social aliases, qty parse, private delivery, combat UI msgs) |
 | `server/network/handlers/session.py` | Ping + sync session peeks (extracted) |
 | `server/network/handlers/social_peeks.py` | lastwhisper/social/lastemote/lastshare/lastinvite/pending |
+| `server/network/handlers/look.py` | look/examine/profile/whereis (coords only if AOI-near) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -506,6 +507,9 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 292. **`ignore_list`:** online cards include **`nearby`** (AOI) + `online`/`offline`; offline keep cached names.
 293. **`ignores` list:** `count` / `online_count` / `offline_count` + plain `message` summary.
 294. Tests: `test_features_v05125` + `test_mp_reliability_v05125`.
+295. **`handlers/look.py`:** look/examine/whereis extracted from message_handler.
+296. Look response includes plain **`message`** + top-level **`nearby`**; coords only when near/self.
+297. Tests: `test_features_v05126` + `test_mp_reliability_v05126`.
 
 ## Tests (mandatory for your changes)
 

@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.125** (2026-07-19) · suite **648** tests · `/ignores` near/far · Mute README card · humans ≠ agents
+**Last docs refresh:** **v0.5.126** (2026-07-19) · suite **654** tests · look extract · plain look message · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

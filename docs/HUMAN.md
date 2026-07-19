@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.125-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-648-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.126-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-654-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.125 · **648** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.126 · **654** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.125):** **`/ignores`** shows whether muted heroes are online and **near or far** · soft reconnect still restores the mute list · **648** tests.
+**Recent for players/ops (v0.5.126):** **`/look`** / **L** includes a short plain message (nearby spot or far zone) · still no map coords when far · **654** tests.
 
 ---
 
@@ -207,7 +207,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/last** · **/lastwhisper** | See who **/r** will reply to (near/far when online) |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* · `/players` same as `/who` |
-| **L** | Look at a nearby (or roster) adventurer — alone, looks at yourself |
+| **L** · **/look** · **/look Name** | Look at a nearby or online adventurer — alone, looks at yourself · far targets show zone only (no map coords) |
 | **C** | Toggle chat panel |
 
 **HUD:** nearby · online · **repel N** · **light N** (Radiant) when active.  
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 648 passed
+# expect: 654 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.125** · **648** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.126** · **654** tests).
 
 | Do | Don’t |
 |:---|:------|
