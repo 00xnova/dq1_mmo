@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.115** (2026-07-19) · suite **583** tests · `@share` social alias · best-effort invite notifies
+**Last docs refresh:** **v0.5.115** (2026-07-19) · suite **583** tests · ship `fe19668` · README meetup mermaid · plain-language human tree · **humans ≠ agents**
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
