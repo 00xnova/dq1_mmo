@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.89** (2026-07-19) · suite **413** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `930abd7` (v0.5.86); local ahead through starter clothes / combat emote gate
+**Last docs refresh:** **v0.5.92** (2026-07-19) · suite **431** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `11f9704` (v0.5.89) · local **0.5.90–0.5.92** · README re-polished for GitHub
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -80,18 +80,22 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - `/cast heal` · `/repel` · `/return` field magic · `/discard` from chat
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
-- **`/wave Name`** · directed emotes (target sees it even if far)
-- **`/near` · `/zone`** show nearby / in-zone AFK counts
+- **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · emote shortcuts (`/bow`, …)
+- **`/invite Name`** · **`/meet @last`** — private meetup invite (not a party)
+- **`/busy`** AFK alias · **`/near` · `/who`** show AFK and nearby combat counts
+- **`/zone`** show in-zone AFK counts
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, walk, or `/stuck`
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up (plus reason if set)
 - Zone chat only in town/field/dungeon; shout = zone (not world-wide)
 - Online lists update promptly when people leave
 - Safer buy/sell/discard quantities (0 and fractions rejected); bare buy/sell/discard need an item
+- Safer multiplayer IDs (no weird boolean/float targets) · AFK reasons stay clean text
 - Equip / unequip show clear toasts
 - **Change password** for email accounts (`POST /auth/password`)
 - Health check includes online, zones, combats, **AFK count**
 - New heroes start with **clothes** equipped + **3 herbs**
+- No emotes mid-combat (you can still list them)
 - Emotes blocked during combat (emote list still works)
 - Shop / equip / cast / stuck stay reliable when many peeks fire at once
 - CC0 pixel art (Kenney + Tiny Creatures) + SVG companions

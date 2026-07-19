@@ -266,8 +266,31 @@ function Network.reply(text)
   return Network.send({ type = "reply", text = text })
 end
 
-function Network.emote(emote)
-  return Network.send({ type = "emote", emote = emote or "wave" })
+function Network.emote(emote, to_name)
+  local payload = { type = "emote", emote = emote or "wave" }
+  if to_name and tostring(to_name) ~= "" then
+    payload.to = tostring(to_name)
+  end
+  return Network.send(payload)
+end
+
+--- Meetup invite (not a party): private notice with inviter zone.
+function Network.invite(to_name)
+  if to_name == nil or tostring(to_name) == "" then
+    return Network.send({ type = "invite", to = "@last" })
+  end
+  return Network.send({ type = "invite", to = tostring(to_name) })
+end
+
+function Network.busy(reason)
+  if reason and tostring(reason) ~= "" then
+    return Network.send({ type = "busy", text = tostring(reason) })
+  end
+  return Network.send({ type = "busy" })
+end
+
+function Network.lastemote()
+  return Network.send({ type = "lastemote" })
 end
 
 function Network.look(name_or_id)

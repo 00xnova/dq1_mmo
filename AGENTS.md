@@ -17,20 +17,20 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · directed emotes · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
+| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard (friendly item names) · stuck/home · yell · directed emotes · emote shortcuts (`/wave`) · last-emote · busy AFK · meetup invite (`/invite`) · nearby_combat census · AFK notices + reason · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.89` (`server/config.py` → `VERSION`) · **413** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.92` (`server/config.py` → `VERSION`) · **431** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.89** / **413** until the suite or `VERSION` changes.  
-Last **pushed** ship: `930abd7` (v0.5.86). Local tree includes **0.5.87–0.5.89** uncommitted.  
+Keep badges at **0.5.92** / **431** until the suite or `VERSION` changes.  
+Last **pushed** ship: `11f9704` (v0.5.89). Local tree includes **0.5.90–0.5.92** uncommitted (invite · busy · lastemote · ID/AFK reliability).  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass: badges **0.5.89 / 413** · human tree plain language · protocol **only** in this file.
+Docs pass (**this run**): badges **0.5.92 / 431** · re-verified human ≠ agent trees · README GitHub polish (journey diagram · 5-pillar strip · first-hour tip) · leak-scan clean · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -131,7 +131,11 @@ All messages are JSON objects with a `type` string.
 | `whisper` / `tell` | `to` (name) and/or `to_id`/`player_id`, `text` | Private to one **online** player (echo to self) |
 | `reply` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace) |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
-| `who` / `players` / `online_list` | — | Nearby players + `online` + `afk_count` + `zones` counts (town/field/dungeon); lightweight |
+| `wave` / `bow` / `cheer` / `dance` / `cry` / `laugh` / `point` / `sit` / `think` | optional `to`/`to_id` | Emote shortcuts (same as `emote` + that name); directed + `@last` / `reply` |
+| `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
+| `busy` | optional reason | AFK alias (same as `afk`/`away`). |
+| `invite` / `meet` / `beckon` / `come` | `to`/`to_id` or `@last` | Private meetup invite (zone; coords only if nearby). Not a party. Chat-rate. |
+| `who` / `players` / `online_list` | — | Nearby players + `online` + `afk_count` + `nearby_combat` + `zones`; lightweight |
 | `look` / `examine` / `inspect` / `profile` / `card` / `player_info` | `name` or `player_id` | Public card; coords only if nearby. Bare → self. Rate-exempt. |
 | `zone` / `where` / `mapinfo` / `whereami` / `coords` | — | Self zone + x/y + same-zone roster + zone counts. Rate-exempt. |
 | `version` / `ver` / `about` / `server` / `info` | — | `{version, online, zones, uptime, service}`. Rate-exempt. |
@@ -357,6 +361,21 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 164. Emote perform blocked **in combat** (`in combat`); `emotes` catalog still allowed.
 165. New heroes start with **clothes** equipped (`equipment_armor`) + 3 herbs.
 166. Tests: `test_features_v0589`.
+167. **Emote shortcuts:** msg types `wave`/`bow`/`cheer`/`dance`/`cry`/`laugh`/`point`/`sit`/`think` perform that emote (optional `to`/`to_id`). Rate-exempt at global layer (own chat-rate).
+168. **Last directed emote:** successful directed emote → `note_emote_to`; `lastemote` peek; `to:@last` / `to:last` / `to:!` / `reply:true` re-targets; soft-grace restores `last_emote_to_*`.
+169. Failed directed (`no one to emote` / offline / ignore) validates **before** `allow_chat` (no AFK clear, no rate burn).
+170. **`busy`** alias for AFK (reason text same as `/afk`).
+171. **`nearby_combat`** census on `near`/`who`/`counts`/`pong`/`sync` world_state (AOI peers with `in_combat`).
+172. Emote perform requires auth (`authenticate first`); catalog still unauth-ok.
+173. Tests: `test_mp_reliability_v0590` + `test_features_v0590` + `test_adversarial_v0590`.
+174. **`coerce_character_id` / `find_id_by_player_id`:** reject bool (`True→1` trap) and non-integer floats (`1.7→1`); accept ints, `1.0`, digit strings; `pid<=0` never resolves.
+175. **Look** with explicit invalid `id`/`player_id` → `player not found` (never bare-self). Online-only cards still `player not online`.
+176. **Directed emote** with explicit `to_id`/`player_id` that fails resolve → error (never undirected fall-through).
+177. **AFK reason** only from real strings (never `str(True)` / `str(99)`); `sanitize_afk_message` rejects non-str.
+178. Tests: `test_adversarial_hunt_v0591` (id coercion, AFK bool, lastemote offline, peek storm, combat gates).
+179. **Meetup invite:** `invite`/`meet`/`beckon`/`come` — validate self/offline/ignore/ambiguous **before** `allow_chat`; private `invite` payload; coords only if target in AOI; echo may set `target_afk`; notes whisper peer for `/invite @last`; send fail → `refund_chat`.
+180. Client wires `/busy`, `/lastemote`, `/invite`, census toasts (`nearby_combat` / AFK counts).
+181. Tests: `test_features_v0592`.
 
 ## Tests (mandatory for your changes)
 
@@ -450,6 +469,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
 | `tests.test_features_v0543` | /zone, fairy water repel, wings zone, full_plate/silver_shield shop |
+| `tests.test_mp_reliability_v0590` | wave shortcut; lastemote/@last; nearby_combat; busy; soft last-emote; whisper/yell |
+| `tests.test_features_v0590` | unauth wave; no one to emote keeps AFK; help; version/starter |
+| `tests.test_adversarial_v0590` | wave self/offline/ignore no rate; combat gate; peeks then wave |
+| `tests.test_adversarial_hunt_v0591` | bool/float id traps; AFK non-str; lastemote offline; peek storm; combat matrix |
+| `tests.test_features_v0592` | meetup invite; ignore gate; @last; help; busy; bool to_id |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

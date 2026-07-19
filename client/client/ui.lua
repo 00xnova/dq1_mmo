@@ -784,7 +784,7 @@ function UI.minimap(x, y, size, world)
   UI.reset_color()
 end
 
---- Stylized enemy blob for combat (no sprites yet).
+--- Procedural enemy figure when Assets.enemy(id) has no PNG.
 function UI.draw_enemy_figure(cx, cy, name, pulse)
   pulse = pulse or 1
   local bob = math.sin(UI._t * 2.2) * 4

@@ -38,10 +38,13 @@ def _zone_of(meta: dict[str, Any]) -> str | None:
 
 
 def sanitize_afk_message(raw: Any, *, max_len: int = 48) -> str | None:
-    """Optional AFK status text for multiplayer peeks (look/who/whisper tip)."""
-    if raw is None:
+    """Optional AFK status text for multiplayer peeks (look/who/whisper tip).
+
+    Only real strings are accepted — never coerce bool/int/list to \"True\"/\"123\".
+    """
+    if raw is None or not isinstance(raw, str):
         return None
-    text = str(raw).strip()
+    text = raw.strip()
     if not text:
         return None
     # Strip control chars; keep printable unicode
@@ -52,6 +55,31 @@ def sanitize_afk_message(raw: Any, *, max_len: int = 48) -> str | None:
     if len(text) > max_len:
         text = text[:max_len].rstrip()
     return text or None
+
+
+def coerce_character_id(raw: Any) -> int | None:
+    """Strict positive character id. Rejects bool and non-integer floats."""
+    if raw is None or isinstance(raw, bool):
+        return None
+    if isinstance(raw, float):
+        if not math.isfinite(raw) or not raw.is_integer():
+            return None
+        pid = int(raw)
+    elif isinstance(raw, int):
+        pid = raw
+    elif isinstance(raw, str):
+        s = raw.strip()
+        if not s or not s.lstrip("-").isdigit():
+            return None
+        try:
+            pid = int(s)
+        except ValueError:
+            return None
+    else:
+        return None
+    if pid <= 0:
+        return None
+    return pid
 
 
 def _attach_afk_message(card: dict[str, Any], meta: dict[str, Any]) -> None:
@@ -171,14 +199,22 @@ class ConnectionManager:
         return bag
 
     def _stash_soft_grace(self, character_id: int, meta: dict[str, Any]) -> None:
-        # Clients reset move seq on auth; restore buffs + ignore + last whisper peer.
+        # Clients reset move seq on auth; restore buffs + ignore + last social peers.
         repel = max(0, int(meta.get("repel_steps") or 0))
         radiant = max(0, int(meta.get("radiant_steps") or 0))
         ignore = set(meta.get("ignore") or set())
         ignore_names = dict(meta.get("ignore_names") or {})
         last_from = meta.get("last_whisper_from_id")
         last_name = meta.get("last_whisper_from_name")
-        if repel <= 0 and radiant <= 0 and not ignore and not last_from:
+        last_emote_id = meta.get("last_emote_to_id")
+        last_emote_name = meta.get("last_emote_to_name")
+        if (
+            repel <= 0
+            and radiant <= 0
+            and not ignore
+            and not last_from
+            and not last_emote_id
+        ):
             self._soft_grace.pop(character_id, None)
             return
         self._soft_grace[character_id] = {
@@ -188,6 +224,8 @@ class ConnectionManager:
             "ignore_names": ignore_names,
             "last_whisper_from_id": last_from,
             "last_whisper_from_name": last_name,
+            "last_emote_to_id": last_emote_id,
+            "last_emote_to_name": last_emote_name,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
         }
 
@@ -215,6 +253,8 @@ class ConnectionManager:
                 grace_ignore_names = dict(old_meta.get("ignore_names") or {})
                 grace_whisper_id = old_meta.get("last_whisper_from_id")
                 grace_whisper_name = old_meta.get("last_whisper_from_name")
+                grace_emote_id = old_meta.get("last_emote_to_id")
+                grace_emote_name = old_meta.get("last_emote_to_name")
             else:
                 bag = self._take_soft_grace(character_id)
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
@@ -223,6 +263,8 @@ class ConnectionManager:
                 grace_ignore_names = dict(bag.get("ignore_names") or {})
                 grace_whisper_id = bag.get("last_whisper_from_id")
                 grace_whisper_name = bag.get("last_whisper_from_name")
+                grace_emote_id = bag.get("last_emote_to_id")
+                grace_emote_name = bag.get("last_emote_to_name")
 
             if old is not None and old is not websocket:
                 try:
@@ -275,6 +317,8 @@ class ConnectionManager:
                 "ignore_names": grace_ignore_names,  # tid -> name for offline display
                 "last_whisper_from_id": grace_whisper_id,
                 "last_whisper_from_name": grace_whisper_name,
+                "last_emote_to_id": grace_emote_id,
+                "last_emote_to_name": grace_emote_name,
                 "afk": False,  # manual /afk — cleared on back / activity
                 "afk_since": None,  # monotonic when /afk set (for afk_for peeks)
                 "afk_message": None,  # optional status text while AFK
@@ -392,6 +436,15 @@ class ConnectionManager:
         n = 0
         for card in self.zone_roster(character_id, include_self=include_self):
             if card.get("afk"):
+                n += 1
+        return n
+
+    def nearby_combat_count(self, character_id: int) -> int:
+        """Peers currently in combat within geometric AOI (excludes self)."""
+        n = 0
+        for oid in self.ids_nearby(character_id):
+            meta = self._meta.get(oid)
+            if meta and meta.get("in_combat") and oid in self._connections:
                 n += 1
         return n
 
@@ -728,6 +781,29 @@ class ConnectionManager:
             return None, None
         lid = meta.get("last_whisper_from_id")
         name = meta.get("last_whisper_from_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
+    def note_emote_to(
+        self, speaker_id: int, target_id: int, target_name: str | None = None
+    ) -> None:
+        """Remember last directed-emote target for /wave @last after reconnect."""
+        meta = self._meta.get(speaker_id)
+        if meta is None:
+            return
+        meta["last_emote_to_id"] = int(target_id)
+        if target_name:
+            meta["last_emote_to_name"] = str(target_name)[:24]
+
+    def last_emote_to(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_emote_to_id")
+        name = meta.get("last_emote_to_name")
         try:
             lid_i = int(lid) if lid is not None else None
         except (TypeError, ValueError):
@@ -1456,12 +1532,13 @@ class ConnectionManager:
         )
 
     def find_id_by_player_id(self, player_id: Any) -> int | None:
-        """Resolve online character id from int/str player_id."""
-        if player_id is None:
-            return None
-        try:
-            pid = int(player_id)
-        except (TypeError, ValueError):
+        """Resolve online character id from int/str player_id.
+
+        Rejects bool (True→1 trap) and non-integer floats (1.7→1 trap).
+        Accepts ints, integer floats (1.0), and digit strings.
+        """
+        pid = coerce_character_id(player_id)
+        if pid is None:
             return None
         if pid in self._meta and pid in self._connections:
             return pid

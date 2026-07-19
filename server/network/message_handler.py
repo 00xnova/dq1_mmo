@@ -262,6 +262,7 @@ async def handle_message(
         if character_id is not None:
             pong_body["nearby_count"] = len(manager.ids_nearby(character_id))
             pong_body["nearby_afk"] = manager.nearby_afk_count(character_id)
+            pong_body["nearby_combat"] = manager.nearby_combat_count(character_id)
             pong_body["session_id"] = manager.session_id(character_id)
         outbound.append(msg(ServerMessageType.PONG, **pong_body))
         if data.get("sync") or data.get("presence"):
@@ -327,6 +328,7 @@ async def handle_message(
                 afk_count=manager.afk_count(),
                 nearby_count=len(nearby_list),
                 nearby_afk=manager.nearby_afk_count(character_id),
+                nearby_combat=manager.nearby_combat_count(character_id),
                 zones=manager.zone_counts(),
                 roster=manager.online_roster(),
                 you=you_blob,
@@ -367,6 +369,7 @@ async def handle_message(
                 zones=manager.zone_counts(),
                 afk_count=manager.afk_count(),
                 nearby_afk=manager.nearby_afk_count(character_id),
+                nearby_combat=manager.nearby_combat_count(character_id),
                 you={
                     "id": character_id,
                     "name": (meta or {}).get("name"),
@@ -411,18 +414,21 @@ async def handle_message(
             except Exception:
                 you_zone = None
         nearby_afk = manager.nearby_afk_count(character_id)
+        nearby_combat = manager.nearby_combat_count(character_id)
         afk_n = manager.afk_count()
         near_body = {
             "type": "near",
             "players": nearby,
             "nearby_count": len(nearby),
             "nearby_afk": nearby_afk,
+            "nearby_combat": nearby_combat,
             "afk_count": afk_n,
             "online": len(manager.online_ids()),
             "zone": you_zone,
             "zones": manager.zone_counts(),
             "message": (
-                f"{len(nearby)} nearby · AFK {nearby_afk} · {afk_n} AFK online"
+                f"{len(nearby)} nearby · combat {nearby_combat} · "
+                f"AFK {nearby_afk} · {afk_n} AFK online"
             ),
         }
         you_afk = bool((meta or {}).get("afk"))
@@ -496,16 +502,19 @@ async def handle_message(
         if sid is not None:
             you["session_id"] = sid
         afk_n = manager.afk_count()
+        nearby_combat = manager.nearby_combat_count(character_id)
         body = {
             "type": "counts",
             "online": online_n,
             "afk_count": afk_n,
             "nearby_count": nearby_n,
+            "nearby_combat": nearby_combat,
             "zones": zones,
             "you": you,
             "session_id": sid,
             "message": (
                 f"{online_n} online · AFK {afk_n} · nearby {nearby_n} · "
+                f"combat {nearby_combat} · "
                 f"town {zones.get('town', 0)} · field {zones.get('field', 0)} · "
                 f"dungeon {zones.get('dungeon', 0)}"
             ),
@@ -585,13 +594,17 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         target_name = data.get("name") or data.get("to") or data.get("target") or data.get("player")
-        target_id = data.get("player_id") or data.get("id")
+        raw_pid = data.get("player_id") if data.get("player_id") is not None else data.get("id")
         tid: int | None = None
-        if target_id is not None:
-            try:
-                tid = int(target_id)
-            except (TypeError, ValueError):
-                tid = None
+        had_raw_pid = raw_pid is not None
+        if had_raw_pid:
+            from network.websocket_manager import coerce_character_id
+
+            tid = coerce_character_id(raw_pid)
+            # Explicit but invalid id (bool/float/garbage) → not found, not bare-self
+            if tid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+                return character_id, user_id, outbound, None
         if tid is None and isinstance(target_name, str) and target_name.strip():
             tid, nerr = manager.resolve_live_name(target_name)
             if nerr == "name ambiguous":
@@ -602,7 +615,7 @@ async def handle_message(
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
         # Bare look / empty name → examine self (MVP social convenience)
-        if tid is None and (
+        if tid is None and not had_raw_pid and (
             target_name is None
             or (isinstance(target_name, str) and not target_name.strip())
         ):
@@ -965,7 +978,10 @@ async def handle_message(
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /wave · /wave Name — nearby or directed emote"},
+                    {"cmd": "emote", "hint": "E · /wave · /bow Name · /wave @last — emote shortcuts"},
+                    {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
+                    {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
+                    {"cmd": "invite", "hint": "/invite Name · /meet @last — meetup invite"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
                     {"cmd": "use", "hint": "/use herb — use consumable from bag"},
@@ -982,9 +998,8 @@ async def handle_message(
                     {"cmd": "keys", "hint": "/keys · /controls — keybind summary"},
                     {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
                     {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
-                    {"cmd": "discard", "hint": "D in bag — destroy item (free a slot)"},
+                    {"cmd": "discard", "hint": "/discard herb [qty] · D in bag — free a slot"},
                     {"cmd": "cast", "hint": "/cast heal · /repel · /return · H/M keys"},
-                    {"cmd": "discard", "hint": "/discard herb [qty] · D in bag"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores · /blocklist"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
@@ -1024,26 +1039,25 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    # --- Manual AFK / away / back (+ optional status message) ---
-    if msg_type in ("afk", "away", "back"):
+    # --- Manual AFK / away / busy / back (+ optional status message) ---
+    if msg_type in ("afk", "away", "busy", "back"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
-        want_afk = msg_type in ("afk", "away")
+        want_afk = msg_type in ("afk", "away", "busy")
         if msg_type == "back":
             want_afk = False
-        if msg_type == "afk" and (data.get("clear") or data.get("off")):
+        if msg_type in ("afk", "busy") and (data.get("clear") or data.get("off")):
             want_afk = False
-        raw_afk_text = str(
-            data.get("text")
-            or data.get("message")
-            or data.get("reason")
-            or data.get("status")
-            or data.get("mode")
-            or ""
-        ).strip()
+        # Only real strings become AFK reasons — never str(True)/str(123)
+        raw_afk_text = ""
+        for _k in ("text", "message", "reason", "status", "mode"):
+            _v = data.get(_k)
+            if isinstance(_v, str) and _v.strip():
+                raw_afk_text = _v.strip()
+                break
         # /afk with text "back" or explicit back
-        if msg_type in ("afk", "away") and raw_afk_text.lower() in (
+        if msg_type in ("afk", "away", "busy") and raw_afk_text.lower() in (
             "back",
             "off",
             "clear",
@@ -1056,7 +1070,7 @@ async def handle_message(
         was_afk = bool((meta_pre or {}).get("afk"))
         afk_msg_arg: str | None = None
         if want_afk:
-            # Empty → no reason; non-empty → set/sanitize
+            # Empty → no reason; non-empty → set/sanitize (sanitize rejects non-str)
             afk_msg_arg = raw_afk_text if raw_afk_text else None
         if not manager.set_afk(character_id, want_afk, message=afk_msg_arg):
             outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
@@ -1159,6 +1173,184 @@ async def handle_message(
                 ),
             )
         )
+        return character_id, user_id, outbound, None
+
+    # --- Last directed-emote peer (multiplayer /wave @last) ---
+    if msg_type in ("lastemote", "last_emote", "who_emote", "emote_last"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        lid, lname = manager.last_emote_to(character_id)
+        peer = None
+        online = False
+        peer_afk = False
+        if lid is not None:
+            online = manager.is_online(lid)
+            pmeta = manager.get_meta(lid) if online else None
+            peer_afk = bool(pmeta.get("afk")) if pmeta else False
+            peer = {
+                "id": lid,
+                "name": lname or (pmeta or {}).get("name"),
+                "online": online,
+                "afk": peer_afk,
+            }
+            psid = (pmeta or {}).get("session_id") if pmeta else None
+            if psid is not None:
+                peer["session_id"] = psid
+            if peer_afk and pmeta is not None:
+                pam = pmeta.get("afk_message")
+                if isinstance(pam, str) and pam.strip():
+                    peer["afk_message"] = pam.strip()[:48]
+        outbound.append(
+            msg(
+                "lastemote",
+                peer=peer,
+                online=online,
+                message=(
+                    f"Last emote: {peer['name']}"
+                    + (" (online)" if online else " (offline)" if peer else "")
+                    if peer
+                    else "No directed emote target yet."
+                ),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Meetup invite (lightweight multiplayer social — not a party) ---
+    if msg_type in ("invite", "meet", "beckon", "come"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        want_last = bool(data.get("reply")) or (
+            isinstance(target_name, str)
+            and target_name.strip().lower() in ("@last", "last", "!")
+        )
+        raw_pid = None
+        if data.get("to_id") is not None:
+            raw_pid = data.get("to_id")
+        elif data.get("player_id") is not None:
+            raw_pid = data.get("player_id")
+        target_id = (
+            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
+        )
+        if raw_pid is not None and target_id is None:
+            from network.websocket_manager import coerce_character_id
+
+            if coerce_character_id(raw_pid) is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if want_last and target_id is None:
+            # Prefer last whisper peer, else last directed-emote target
+            lid, lname = manager.last_whisper_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_emote_to(character_id)
+            if lid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to invite"))
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            if not want_last:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
+        if target_id is None:
+            if not (
+                isinstance(target_name, str) and target_name.strip()
+            ) and raw_pid is None and not want_last:
+                outbound.append(msg(ServerMessageType.ERROR, reason="invite target required"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if target_id == character_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot invite yourself"))
+            return character_id, user_id, outbound, None
+        if target_id not in manager.online_ids():
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(target_id, character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(character_id, target_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+            return character_id, user_id, outbound, None
+        meta_pre = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta_pre) if meta_pre else False
+        ok_chat, retry = manager.allow_chat(character_id)
+        if not ok_chat:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        tmeta = manager.get_meta(target_id)
+        name = (meta or {}).get("name") or "Hero"
+        tname = (tmeta or {}).get("name") or (
+            target_name.strip() if isinstance(target_name, str) else "Hero"
+        )
+        you_zone = None
+        you_x = you_y = None
+        if meta is not None:
+            try:
+                you_x, you_y = int(meta["x"]), int(meta["y"])
+                you_zone = zone_at(you_x, you_y)
+            except Exception:
+                you_zone = None
+        zone_bit = (
+            f" in the {you_zone}"
+            if you_zone in ("town", "field", "dungeon")
+            else " on the map"
+        )
+        invite_line = f"{name} invites you to meet them{zone_bit}."
+        invite_msg: dict = {
+            "type": "invite",
+            "from": name,
+            "from_id": character_id,
+            "to": tname,
+            "to_id": target_id,
+            "message": invite_line,
+            "zone": you_zone,
+        }
+        # Share coords only when already nearby (same privacy model as look)
+        if target_id in set(manager.ids_nearby(character_id)):
+            invite_msg["x"] = you_x
+            invite_msg["y"] = you_y
+            invite_msg["nearby"] = True
+        else:
+            invite_msg["nearby"] = False
+        sid_i = manager.session_id(character_id)
+        if sid_i is not None:
+            invite_msg["session_id"] = sid_i
+        delivered = await manager.send(target_id, invite_msg)
+        if not delivered:
+            manager.refund_chat(character_id)
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        # Remember as social peer for /r and /invite @last
+        manager.note_whisper_from(character_id, target_id, tname)
+        echo = dict(invite_msg)
+        echo["message"] = f"Invite sent to {tname}."
+        target_afk = bool((tmeta or {}).get("afk"))
+        if target_afk:
+            echo["target_afk"] = True
+            am = (tmeta or {}).get("afk_message")
+            if isinstance(am, str) and am.strip():
+                echo["target_afk_message"] = am.strip()[:48]
+        outbound.append(echo)
+        if was_idle:
+            await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
     # --- Graceful quit / logout (client should close socket after ack) ---
@@ -1439,11 +1631,14 @@ async def handle_message(
                             target_id = None
                         break
         if target_id is None:
-            # allow unignore by id even if offline
-            try:
-                target_id = int(data.get("player_id") or data.get("id") or 0) or None
-            except (TypeError, ValueError):
-                target_id = None
+            # allow unignore by id even if offline (strict id parse — no bool→1)
+            from network.websocket_manager import coerce_character_id
+
+            target_id = coerce_character_id(
+                data.get("player_id")
+                if data.get("player_id") is not None
+                else data.get("id")
+            )
         if target_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
             return character_id, user_id, outbound, None
@@ -2639,24 +2834,33 @@ async def handle_message(
         outbound.append(roll_msg)
         return character_id, user_id, outbound, None
 
-    # --- Emotes (nearby only) ---
-    if msg_type in (ClientMessageType.EMOTE, "emote", "emotes"):
-        allowed = {
-            "wave",
-            "bow",
-            "cheer",
-            "dance",
-            "cry",
-            "laugh",
-            "point",
-            "sit",
-            "think",
-        }
+    # --- Emotes (nearby + directed; shortcuts /wave /bow …) ---
+    _EMOTE_SHORTCUTS = {
+        "wave",
+        "bow",
+        "cheer",
+        "dance",
+        "cry",
+        "laugh",
+        "point",
+        "sit",
+        "think",
+    }
+    if msg_type in (ClientMessageType.EMOTE, "emote", "emotes") or msg_type in _EMOTE_SHORTCUTS:
+        allowed = set(_EMOTE_SHORTCUTS)
         raw_emote = data.get("emote")
-        if raw_emote is None:
-            raw_emote = data.get("id")
-        if raw_emote is None:
-            raw_emote = data.get("action")
+        # Only treat id/action as emote name for generic emote msgs (not /wave + to_id)
+        if msg_type not in _EMOTE_SHORTCUTS:
+            if raw_emote is None:
+                raw_emote = data.get("id")
+            if raw_emote is None:
+                raw_emote = data.get("action")
+        # Top-level type shortcuts: {type:"wave", to:"Name"}
+        if msg_type in _EMOTE_SHORTCUTS and (
+            raw_emote is None
+            or (isinstance(raw_emote, str) and not raw_emote.strip())
+        ):
+            raw_emote = msg_type
         # Bare /emotes or /emote list → catalog (no rate burn)
         want_list = (
             msg_type == "emotes"
@@ -2678,6 +2882,9 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
         if raw_emote is None:
             raw_emote = "wave"  # bare {type:emote} defaults to wave
         if not isinstance(raw_emote, str):
@@ -2696,19 +2903,51 @@ async def handle_message(
             return character_id, user_id, outbound, None
         # Optional directed target — validate BEFORE rate limit (no AFK burn on fail)
         target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
-        target_id = manager.find_id_by_player_id(
-            data.get("to_id") or data.get("player_id") or data.get("id")
+        # /wave @last · reply-style directed emote (server-tracked last target)
+        want_last = bool(data.get("reply")) or (
+            isinstance(target_name, str)
+            and target_name.strip().lower() in ("@last", "last", "!")
+        )
+        # Prefer explicit to_id / player_id. For shortcuts only, `id` is a player id
+        # (generic emote uses `id` as emote name — never as target).
+        raw_pid = None
+        if data.get("to_id") is not None:
+            raw_pid = data.get("to_id")
+        elif data.get("player_id") is not None:
+            raw_pid = data.get("player_id")
+        elif msg_type in _EMOTE_SHORTCUTS and data.get("id") is not None:
+            raw_pid = data.get("id")
+        target_id = (
+            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
         )
         tname: str | None = None
-        if target_id is None and isinstance(target_name, str) and target_name.strip():
-            tid, nerr = manager.resolve_live_name(target_name)
-            if nerr == "name ambiguous":
-                outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
-                return character_id, user_id, outbound, None
-            if tid is None:
+        # Explicit id that does not resolve → error (never fall through to undirected)
+        if raw_pid is not None and target_id is None and not want_last:
+            from network.websocket_manager import coerce_character_id
+
+            if coerce_character_id(raw_pid) is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            else:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if want_last and target_id is None:
+            lid, lname = manager.last_emote_to(character_id)
+            if lid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to emote"))
                 return character_id, user_id, outbound, None
-            target_id = tid
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            # Skip name resolve when token is a last-emote sentinel
+            if not want_last:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                if tid is None:
+                    outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
         if target_id is not None:
             if target_id == character_id:
                 outbound.append(msg(ServerMessageType.ERROR, reason="cannot emote yourself"))
@@ -2790,6 +3029,9 @@ async def handle_message(
         if target_id is not None and target_id not in set(manager.ids_nearby(character_id)):
             if not manager.is_ignored_by(target_id, character_id):
                 await manager.send(target_id, emote_msg)
+        # Track last directed target for /wave @last (soft-grace)
+        if target_id is not None and tname:
+            manager.note_emote_to(character_id, target_id, tname)
         outbound.append(emote_msg)
         if was_idle:
             await manager.publish_status(character_id)

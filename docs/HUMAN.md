@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.89-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-413-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.92-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-431-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.89 · **413** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.92 · **431** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops:** new heroes start in **clothes** with **3 herbs** · no emotes mid-fight · **`/wave Name`** · friendly shop names · AFK reasons · health AFK count · change password · `/stuck` clears AFK.
+**Recent for players/ops (v0.5.92):** **`/invite Name`** · **`/meet @last`** · **`/busy` · `/lastemote` · `/wave @last`** · **`/who` · `/near`** show AFK & combat counts · starter clothes + herbs · no emotes mid-fight.
 
 ---
 
@@ -35,9 +35,9 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/wave Name`** · emotes · **`/roll`** · look · find · who |
-| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** |
-| **Meta** | **`/afk lunch`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/meet`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
+| **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
+| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -143,10 +143,11 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/say message** · **/s message** | Nearby chat (same as **Y**) |
 | **/g message** · **/global message** | Global chat |
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
-| **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
-| **channel `shout`** | Same as zone chat (area shout, not world-wide) |
-| **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line) |
-| **/emote** · **/emotes** · **/wave** · **/wave Name** | List emotes, perform one, or direct an emote at a hero |
+| **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon); not world-wide |
+| **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line)
+| **/emote** · **/emotes** · **/wave** · **/wave Name** · **/wave @last** | List emotes, perform one, or direct an emote at a hero |
+| **/lastemote** | See who your last directed emote targeted |
+| **/invite Name** · **/meet Name** · **/meet @last** | Private meetup invite (not a party) — they get a toast with your zone |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
 | **/use herbs** · **/equip copper sword** | Use a consumable · equip gear (slot chosen automatically) |
 | **/cast heal** · **/repel** · **/return** · **/outside** · **/radiant** | Field magic when you know the spell (same as **H**/**M** keys) |
@@ -162,7 +163,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/time** · **/uptime** | Server clock and how long the world has been up |
 | **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — also shows your zone and how many are online/nearby |
 | **/motd** · **/rules** | Message of the day |
-| **/afk** · **/away** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
+| **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
@@ -175,9 +176,9 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/unignore Name** | Stop ignoring |
 | **/ignores** · **/blocklist** | List who you are ignoring (names stay if they log off) |
 | **/inspect Name** · **/profile Name** · **/card Name** · **/whereis Name** | Same as look / examine |
-| **/who** | Online / nearby + zone counts (same as **O**) |
+| **/who** | Online / nearby + zone counts + AFK / combat peeks (same as **O**) |
 | **/players** | Same as `/who` |
-| **/near** · **/here** | List heroes nearby (view range) |
+| **/near** · **/here** | List heroes nearby (view range) — may note how many are AFK or fighting |
 | **/zone** · **/where** · **/whereami** · **/coords** · **/mapinfo** | Your zone, map position, **who is here**, population by area |
 | **/stats** · **/sheet** | Same as **/status** |
 | **/gold** · **/money** | How much gold you have |
@@ -293,7 +294,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 413 passed
+# expect: 431 passed
 ```
 
 ---
@@ -307,7 +308,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.89** · **413** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.92** · **431** tests).
 
 | Do | Don’t |
 |:---|:------|

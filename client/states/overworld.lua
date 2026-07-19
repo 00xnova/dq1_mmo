@@ -187,6 +187,18 @@ local function bind_handlers(self)
         tonumber(z.dungeon) or 0
       )
     end
+    local afk_n = tonumber(data.afk_count)
+    local combat_n = tonumber(data.nearby_combat)
+    local nearby_afk = tonumber(data.nearby_afk)
+    if afk_n and afk_n > 0 then
+      extra = extra .. string.format(" · AFK %d", afk_n)
+    end
+    if nearby_afk and nearby_afk > 0 then
+      extra = extra .. string.format(" · near AFK %d", nearby_afk)
+    end
+    if combat_n and combat_n > 0 then
+      extra = extra .. string.format(" · combat %d", combat_n)
+    end
     UI.toast(string.format("Online %d · nearby %d%s%s", roster_n, n, zone_bit, extra), "info")
   end)
 
@@ -212,7 +224,16 @@ local function bind_handlers(self)
     end
     local bit = (#names > 0) and (" · " .. table.concat(names, ", ")) or " · none"
     local zbit = data.zone and (" [" .. tostring(data.zone) .. "]") or ""
-    UI.toast(string.format("Nearby %d%s%s", n, zbit, bit), "info")
+    local extra = ""
+    local combat_n = tonumber(data.nearby_combat)
+    local nearby_afk = tonumber(data.nearby_afk)
+    if combat_n and combat_n > 0 then
+      extra = extra .. string.format(" · combat %d", combat_n)
+    end
+    if nearby_afk and nearby_afk > 0 then
+      extra = extra .. string.format(" · AFK %d", nearby_afk)
+    end
+    UI.toast(string.format("Nearby %d%s%s%s", n, zbit, extra, bit), "info")
   end)
 
   Network.on("zone", function(data)
@@ -477,6 +498,32 @@ local function bind_handlers(self)
 
   Network.on("lastwhisper", function(data)
     UI.toast(tostring(data.message or "No one to reply to yet."), "info")
+  end)
+
+  Network.on("lastemote", function(data)
+    UI.toast(tostring(data.message or "No directed emote target yet."), "info")
+  end)
+
+  Network.on("invite", function(data)
+    local line = data.message
+    if not line or line == "" then
+      if data.from and data.from_id then
+        line = tostring(data.from) .. " invites you to meet them."
+      else
+        line = "Invite sent."
+      end
+    end
+    if data.target_afk then
+      if data.target_afk_message and data.target_afk_message ~= "" then
+        line = line .. " (AFK: " .. tostring(data.target_afk_message) .. ")"
+      else
+        line = line .. " (they are AFK)"
+      end
+    end
+    if data.nearby and data.x and data.y and data.from then
+      line = line .. string.format(" · (%s,%s)", tostring(data.x), tostring(data.y))
+    end
+    UI.toast(tostring(line), "ok")
   end)
 
   Network.on("spells", function(data)
@@ -1154,11 +1201,24 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]rules%s*$")
         local wants_afk = text:match("^[/%!]afk%s*$")
           or text:match("^[/%!]away%s*$")
+          or text:match("^[/%!]busy%s*$")
         local afk_reason = text:match("^[/%!]afk%s+(.+)$")
           or text:match("^[/%!]away%s+(.+)$")
+          or text:match("^[/%!]busy%s+(.+)$")
         local wants_back = text:match("^[/%!]back%s*$")
           or text:match("^[/%!]afk%s+back%s*$")
           or text:match("^[/%!]away%s+back%s*$")
+          or text:match("^[/%!]busy%s+back%s*$")
+        local wants_lastemote = text:match("^[/%!]lastemote%s*$")
+          or text:match("^[/%!]last_emote%s*$")
+          or text:match("^[/%!]emote_last%s*$")
+        local invite_tgt = text:match("^[/%!]invite%s+(%S+)$")
+          or text:match("^[/%!]meet%s+(%S+)$")
+          or text:match("^[/%!]beckon%s+(%S+)$")
+          or text:match("^[/%!]come%s+(%S+)$")
+        local wants_invite_last = text:match("^[/%!]invite%s*$")
+          or text:match("^[/%!]meet%s*$")
+          or text:match("^[/%!]beckon%s*$")
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
@@ -1299,11 +1359,12 @@ function Overworld:keypressed(key)
           Network.chat(global_msg, "global")
         elseif emote_at and emote_tgt and emote_tgt ~= "" then
           local tgt = (emote_tgt:match("^%s*(.-)%s*$") or emote_tgt)
-          Network.send({ type = "emote", emote = emote_at:lower(), to = tgt })
+          Network.emote(emote_at:lower(), tgt)
           UI.toast("Emote: " .. emote_at:lower() .. " → " .. tgt, "info")
         elseif quick_emote_at and quick_emote_tgt and quick_emote_tgt ~= "" then
           local tgt = (quick_emote_tgt:match("^%s*(.-)%s*$") or quick_emote_tgt)
-          Network.send({ type = "emote", emote = quick_emote_at:lower(), to = tgt })
+          -- Prefer type shortcut so server path matches /wave Name
+          Network.send({ type = quick_emote_at:lower(), to = tgt })
           UI.toast("Emote: " .. quick_emote_at:lower() .. " → " .. tgt, "info")
         elseif emote_cmd and emote_cmd ~= "" then
           if emote_cmd:lower() == "list" or emote_cmd:lower() == "help" then
@@ -1314,6 +1375,16 @@ function Overworld:keypressed(key)
           end
         elseif wants_emote_list then
           Network.send({ type = "emotes" })
+        elseif invite_tgt and invite_tgt ~= "" then
+          Network.invite(invite_tgt)
+        elseif wants_invite_last then
+          Network.invite("@last")
+        elseif wants_lastemote then
+          if Network.lastemote then
+            Network.lastemote()
+          else
+            Network.send({ type = "lastemote" })
+          end
         elseif wants_stuck then
           Network.send({ type = "stuck" })
         elseif wants_shop then
@@ -1359,7 +1430,7 @@ function Overworld:keypressed(key)
             item = (equip_item:match("^%s*(.-)%s*$") or equip_item):lower(),
           })
         elseif quick_emote and quick_emote ~= "" then
-          Network.emote(quick_emote:lower())
+          Network.send({ type = quick_emote:lower() })
           UI.toast("Emote: " .. quick_emote:lower(), "info")
         elseif wants_look_self then
           Network.look()
@@ -1426,11 +1497,25 @@ function Overworld:keypressed(key)
           local low = (r or ""):lower()
           if low == "back" or low == "off" or low == "clear" then
             Network.send({ type = "back" })
+          elseif text:match("^[/%!]busy") then
+            if Network.busy then
+              Network.busy(r)
+            else
+              Network.send({ type = "busy", text = r })
+            end
           else
             Network.send({ type = "afk", text = r })
           end
         elseif wants_afk then
-          Network.send({ type = "afk" })
+          if text:match("^[/%!]busy") then
+            if Network.busy then
+              Network.busy()
+            else
+              Network.send({ type = "busy" })
+            end
+          else
+            Network.send({ type = "afk" })
+          end
         elseif wants_quit then
           Network.send({ type = "quit" })
         elseif block_name and block_name ~= "" then
