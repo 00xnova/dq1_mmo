@@ -49,7 +49,7 @@
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo/actions"><img alt="ci" src="https://img.shields.io/badge/CI-local_suite-22c55e?style=flat-square&logo=githubactions&logoColor=white" /></a>
   <img alt="python" src="https://img.shields.io/badge/Python-3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
   <img alt="love2d" src="https://img.shields.io/badge/Love2D-11.x-EA316E?style=flat-square&logo=lua&logoColor=white" />
-  <img alt="fastapi" src="https://img.shields.io/badge/FastAPI-WebSocket-009694?style=flat-square&logo=fastapi&logoColor=white" />
+  <img alt="fastapi" src="https://img.shields.io/badge/FastAPI-WebSocket-009688?style=flat-square&logo=fastapi&logoColor=white" />
   <img alt="sqlite" src="https://img.shields.io/badge/SQLite-local_first-003B57?style=flat-square&logo=sqlite&logoColor=white" />
   <img alt="websockets" src="https://img.shields.io/badge/realtime-WebSockets-0ea5e9?style=flat-square&logo=socketdotio&logoColor=white" />
   <img alt="license" src="https://img.shields.io/badge/fan_project-not_Square_Enix-6b7280?style=flat-square" />
@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/afk lunch</code> with zone context · <code>/ignores</code> near · far · zone · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/find Name</code> with plain summary · <code>/ignores</code> near · far · zone · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -85,6 +85,7 @@
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
   <img alt="look" src="https://img.shields.io/badge//look-near_coords_·_far_zone-0ea5e9?style=flat-square" />
+  <img alt="find" src="https://img.shields.io/badge//find-plain_summary-0ea5e9?style=flat-square" />
   <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far_·_zone-64748b?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-/played_·_mute_·_social-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
@@ -153,6 +154,7 @@ protocol · tests · reliability
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
+  <img alt="find2" src="https://img.shields.io/badge/🔍_Find-plain_summary-0ea5e9?style=for-the-badge" />
   <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-zone_·_nearby-f97316?style=for-the-badge" />
 </p>
 
@@ -246,22 +248,31 @@ flowchart LR
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#7c2d12', 'primaryTextColor': '#ffedd5', 'lineColor': '#fdba74', 'secondaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#0c4a6e', 'primaryTextColor': '#e0f2fe', 'lineColor': '#38bdf8', 'secondaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph afk ["AFK loop"]
-    A["/afk lunch"] --> B["You are now AFK · town · nearby"]
-    B --> C["/busy meeting"]
-    C --> D["/back"]
-    D --> E["Welcome back · zone"]
+  subgraph find ["Find loop"]
+    F1["/find Hero"] --> F2["Found Hero · town"]
+    F3["/find zone:field"] --> F4["Found N heroes · online"]
+    F5["/find combat:yes"] --> F6["Who is fighting"]
   end
-  subgraph peers ["Nearby heroes"]
-    B --> N["System: Hero is now AFK"]
-    E --> N2["System: Hero is back"]
+  subgraph safe ["Never shows"]
+    F2 --> X["No map coords of others"]
   end
 ```
 
 <table>
 <tr>
+<td width="12%" valign="top" align="center">
+
+### 🔍 Find
+| | |
+|:--|:--|
+| **`/find`** | search |
+| zone · afk | filters |
+
+<sub>plain · census</sub>
+
+</td>
 <td width="12%" valign="top" align="center">
 
 ### ☕ AFK
@@ -543,7 +554,7 @@ flowchart TB
 | 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share` · `/lastshare` · `/askwhere` · `/thank` · `/poke`** — social (not a party) |
 | 📍 | **`@share`** / **`@from`** · **`@emote`** / **`@emotedby`** — two-way social memory (needs the **@**) |
 | 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · **`/fighting`** · **`/social`** |
-| 🔍 | **`/find`** · **`/find combat:yes`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
+| 🔍 | **`/find`** · **`/find combat:yes`** (plain summary) · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/version`** · **`/time`** · **`/bag`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |
 | 🛒 | **`/buy copper sword`** · **`/sell`** · **`/use`** · **`/equip`** · **`/shop`** |
@@ -638,7 +649,7 @@ flowchart TB
   <img alt="py" src="https://img.shields.io/badge/need-Python_3.11+-3776AB?style=flat-square&logo=python&logoColor=white" />
   <img alt="love" src="https://img.shields.io/badge/need-Love2D_11.x-EA316E?style=flat-square" />
   <img alt="port" src="https://img.shields.io/badge/port-8000-0ea5e9?style=flat-square" />
-  <img alt="ws" src="https://img.shields.io/badge/realtime-WebSocket-009694?style=flat-square&logo=socketdotio&logoColor=white" />
+  <img alt="ws" src="https://img.shields.io/badge/realtime-WebSocket-009688?style=flat-square&logo=socketdotio&logoColor=white" />
 </p>
 
 ```mermaid
@@ -739,7 +750,7 @@ python tests/run_tests.py
 | **/last** · **/lastwhisper** | Who `/r` targets (near/far when online) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice |
 | **/counts** · **/census** | Online + zone totals |
-| **/find Name** · **/find zone:town** · **/find afk** | Search online (no map coords) |
+| **/find Name** · **/find zone:town** · **/find afk** | Search online (no map coords) · plain summary + room census |
 | **/who** · **/players** | Online + nearby + zones (**O**) |
 | **/near** · **/here** | Heroes in view |
 | **/zone** · **/where** · **/whereami** · **/mapinfo** | Your area + who is here |
@@ -852,7 +863,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/ping` | Latency check |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |
 | `/counts` · `/census` | Online + zone population |
-| `/find Name` · `/find zone:field` · `/find afk` · `/find combat:yes` | Search (zone / AFK / combat filters, no coords) |
+| `/find Name` · `/find zone:field` · `/find afk` · `/find combat:yes` | Search (zone / AFK / combat filters, no coords) · plain summary |
 | `/who` · `/players` · `/near` · `/zone` | Rosters & area info |
 | `/hp` · `/vitals` · `/xp` · `/level` | HP/MP · level + XP |
 | `/buffs` · `/effects` | Repel · radiant · AFK flags |

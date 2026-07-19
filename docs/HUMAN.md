@@ -23,8 +23,8 @@ Protocol tables and test matrices stay **out** of this guide.
 **Recent for players/ops (v0.5.134):** **`/find`** answers with a plain summary (how many matched · online) · stuck/home/quit and AFK still carry room context · **694** tests.
 
 > [!TIP]
-> **Step away cleanly:** **`/afk lunch`** or **`/busy meeting`** · nearby heroes may see a system line · **`/back`** when you return. Confirms mention zone and nearby counts.  
-> **Mute without drama:** **`/ignore Hero`** · **`/ignores`** (near · far · zone) · **`/unignore Hero`**.
+> **Find friends:** **`/find Hero`** · **`/find zone:field`** · **`/find combat:yes`** — you get a plain line (how many matched · how many online), never someone else’s map coords.  
+> **Step away cleanly:** **`/afk lunch`** · **`/back`**. **Mute:** **`/ignore`** · **`/ignores`** · **`/unignore`**.
 
 ---
 
