@@ -7,13 +7,13 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.96</b> · <b>448</b> tests green · meetup · shop · AFK · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.98</b> · <b>460</b> tests green · meetup social · shop · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.96-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.98-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-448_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-460_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -50,27 +50,27 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · inn · shop · whisper · <b>/wave</b> · <b>/invite</b> · <b>/share</b> · AFK · soft reconnect.
+  Server-side 1v1 · shop · whisper · meetup social · AFK · soft reconnect.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/social-wave_·_invite_·_share-8b5cf6?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/social-invite_·_share_·_askwhere_·_poke-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
   <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_lunch-f97316?style=flat-square" />
-  <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/share_·_/accept-ec4899?style=flat-square" />
+  <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/share_·_/askwhere-ec4899?style=flat-square" />
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-448_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-460_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.  
-> **Two audiences on purpose:** people use this page + [HUMAN](docs/HUMAN.md) · coding agents use **[AGENTS.md](AGENTS.md) only** (never a player guide — no protocol dumps here).
+> **Two audiences on purpose:** people use this page + [HUMAN](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never a player guide, and **no protocol dumps here**.
 
 <table>
 <tr>
@@ -110,7 +110,7 @@ protocol · tests · reliability
        │              │                              │
        │              └──── /shop · inn · equip ─────┤
        │                                              ▼
-       │         /invite · /share · /accept · /wave
+       │    /invite · /share · /askwhere · /poke · /accept · /wave
        └──────── /busy · /fighting ◄── Field / Dungeon
                       │
                  /stuck home · logout
@@ -121,7 +121,7 @@ protocol · tests · reliability
 <td align="center" width="20%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
 <td align="center" width="20%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
 <td align="center" width="20%"><b>🛒 Shop</b><br/><sub>friendly names</sub></td>
-<td align="center" width="20%"><b>👋 Meetup</b><br/><sub>invite · share</sub></td>
+<td align="center" width="20%"><b>👋 Social</b><br/><sub>invite · share · ask</sub></td>
 <td align="center" width="20%"><b>☕ AFK</b><br/><sub>/busy · /back</sub></td>
 </tr>
 </table>
@@ -142,7 +142,7 @@ protocol · tests · reliability
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.96** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.98** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -158,8 +158,8 @@ protocol · tests · reliability
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.96-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/448_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.98-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/460_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -168,19 +168,22 @@ protocol · tests · reliability
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.96** — combat census + safer cancel |
+| | **v0.5.98** — meetup tools + rock-solid private social · **460** tests |
 |:--|:--|
-| ⚔️ | **`/who` · `/counts` · `/find combat:yes`** show how many are fighting |
-| 🛡️ | **`/cancel` after accept** no longer spams the guest |
-| 🤝 | Full meetup loop still: invite · share · accept · decline |
-| ✅ | **448** automated tests green |
+| 📍 | **`/askwhere Name` · `/locate @last`** — ask a hero where they are; they **`/share @last`** to answer |
+| 🛡️ | Failed private messages (disconnect mid-send) **keep your AFK badge** honest |
+| 👉 | **`/poke` · `/nudge`** · full meetup loop (**invite · share · accept · cancel**) |
+| 📊 | **`/who`** fighting census · **`/find combat:yes`** · near/zone ⚔💤 tags |
+| ✅ | **460** automated tests green |
 
 > [!TIP]
-> **Meetup loop:** **`/invite Hero`** · **`/share Hero`** · they **`/accept`** · **`/r`** to chat · **`/cancel`** if plans change.  
-> **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/near`** · **`/stuck`** if lost.
+> **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/poke Hero`** · they **`/accept`** · **`/r`** · **`/cancel`** if plans change.  
+> **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
 
 > [!IMPORTANT]
-> **Docs stay split.** Players → this page + [HUMAN](docs/HUMAN.md). Coding agents → **[AGENTS.md](AGENTS.md) only** (protocol never lives in the README).
+> **Two audiences, two trees — do not mix.**  
+> **People** → this README + [docs/HUMAN.md](docs/HUMAN.md) + [art](client/assets/ATTRIBUTION.md).  
+> **Coding agents / LLMs** → **[AGENTS.md](AGENTS.md) only**. Never paste protocol catalogs or test matrices into player pages.
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -189,6 +192,10 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.98** | `/askwhere` location request · restore AFK after failed whisper/invite/share/poke/accept · **460** tests |
+| **0.5.97** | `/poke` · `/nudge` · fighting census on who · multiplayer toasts |
+| **0.5.96** | Combat census · find combat:yes · safer cancel after accept |
+| **0.5.95** | Cancel invite · share location · meetup loop complete |
 | **0.5.94** | Invite one-answer hygiene · safer dice · accept enables `/r` |
 | **0.5.93** | Invite accept/decline · fighting peek · lastinvite |
 | **0.5.92** | Meetup invites · busy · lastemote · who/near census |
@@ -260,9 +267,9 @@ protocol · tests · reliability
 | | |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · **`/roll`** |
-| 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share`** — meetup (not a party) |
+| 🤝 | **`/invite` · `/accept` · `/decline` · `/cancel` · `/share` · `/askwhere` · `/poke`** — social (not a party) |
 | 👋 | **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · **`/fighting`** |
-| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/whereis`** |
+| 🔍 | **`/find`** · **`/find combat:yes`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** |
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |
 | 🛒 | **`/buy copper sword`** · **`/sell`** · **`/use`** · **`/equip`** · **`/shop`** |
@@ -285,7 +292,7 @@ protocol · tests · reliability
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **448** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **460** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -345,7 +352,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 448 passed
+# expect: 460 passed
 ```
 
 ---
@@ -372,8 +379,11 @@ python tests/run_tests.py
 | **/accept** · **/coming** · **/decline** · **/later** | Answer a meetup invite |
 | **/cancel** · **/uninvite** | Take back your last invite |
 | **/share Name** · **/share @last** | Privately share your zone + position |
+| **/askwhere Name** · **/locate @last** | Ask where they are — they can **/share @last** |
+| **/poke Name** · **/nudge @last** | Private “trying to get your attention” |
 | **/lastinvite** | Who last invited you |
 | **/fighting** · **/combats** | Nearby heroes currently fighting |
+| **/find combat:yes** · **/find fighting** | Online fighters (no map coords) |
 | **/busy [reason]** | AFK alias (same as **/afk**) |
 | **/buy copper sword** · **/sell herb** · **/shop** | Town shop — **names or ids** (optional qty) |
 | **/use herb** · **/equip copper sword** | Use consumable · equip gear (slot auto) |
@@ -478,8 +488,11 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/accept` · `/coming` · `/decline` · `/later` | Answer a meetup invite |
 | `/cancel` · `/uninvite` | Cancel your last outgoing invite |
 | `/share Name` · `/share @last` | Privately share zone + map position |
+| `/askwhere Name` · `/locate @last` | Ask where they are (they `/share @last`) |
+| `/poke Name` · `/nudge @last` | Private attention ping |
 | `/lastinvite` | Who last invited you |
 | `/fighting` · `/combats` | Nearby heroes in combat |
+| `/find combat:yes` · `/find fighting` | Online fighters (no map coords) |
 | `/busy [reason]` | Same as `/afk` — show as away |
 | `/shop` · `/buy copper sword` · `/sell herb 2` | Town shop — **friendly names** (optional qty) |
 | `/use herbs` · `/equip copper sword` | Use / equip (names OK; slot auto) |
@@ -488,7 +501,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/ping` | Latency check |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |
 | `/counts` · `/census` | Online + zone population |
-| `/find Name` · `/find zone:field` · `/find afk` | Search (zone / AFK filters, no coords) |
+| `/find Name` · `/find zone:field` · `/find afk` · `/find combat:yes` | Search (zone / AFK / combat filters, no coords) |
 | `/who` · `/players` · `/near` · `/zone` | Rosters & area info |
 | `/hp` · `/vitals` · `/xp` · `/level` | HP/MP · level + XP |
 | `/buffs` · `/effects` | Repel · radiant · AFK flags |
@@ -592,9 +605,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-448_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-460_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.96-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.98-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -604,8 +617,8 @@ dq1_mmo/
 
 > [!IMPORTANT]
 > **Two audiences, two trees — do not mix.**  
-> Play / host / art → this README + [docs/HUMAN.md](docs/HUMAN.md) + [ATTRIBUTION](client/assets/ATTRIBUTION.md).  
-> Code agents → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).  
+> **Play / host / art** → this README + [docs/HUMAN.md](docs/HUMAN.md) + [ATTRIBUTION](client/assets/ATTRIBUTION.md).  
+> **Code agents** → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).  
 > **Never** paste WebSocket catalogs or test matrices into player-facing pages.
 
 <table>
@@ -616,10 +629,10 @@ dq1_mmo/
 
 | Document | Contents |
 |:---------|:---------|
-| **[README.md](README.md)** *(this page)* | Install · features · controls |
+| **[README.md](README.md)** *(this page)* | Install · features · controls · GitHub face |
 | **[docs/HUMAN.md](docs/HUMAN.md)** | Gameplay · inn · magic · social · hosting |
 | **[client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md)** | PNG names · CC0 licenses |
-| **[docs/README.md](docs/README.md)** | Docs map & checklist |
+| **[docs/README.md](docs/README.md)** | Docs map & audience rules |
 | [plan.md](plan.md) | Historical only — **not** live truth |
 
 </td>
@@ -645,9 +658,9 @@ dq1_mmo/
 | Role | Start here |
 |:-----|:-----------|
 | **Player** | This README → [docs/HUMAN.md](docs/HUMAN.md) |
-| **Host / ops** | [Quick start](#-quick-start) · [Configuration](#️-configuration) |
+| **Host / ops** | [Quick start](#-quick-start) · [Configuration](#️-configuration) · HUMAN |
 | **Artist** | [client/assets/ATTRIBUTION.md](client/assets/ATTRIBUTION.md) |
-| **Coding agent** | **[`AGENTS.md`](AGENTS.md) only** |
+| **Coding agent** | **[`AGENTS.md`](AGENTS.md) only** — not this README |
 
 | Do | Don’t |
 |:---|:------|
@@ -655,6 +668,7 @@ dq1_mmo/
 | Put protocol, reliability, tests in `AGENTS.md` | Treat `plan.md` as the live backlog |
 | Keep slash-commands accurate for players | Document unfinished features as shipped |
 | Bump version badges when `VERSION` changes | Leave HUMAN / README out of date |
+| Link the other tree when useful | Copy agent contract text into player pages |
 
 ---
 
@@ -670,8 +684,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.96-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/448_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.98-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/460_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

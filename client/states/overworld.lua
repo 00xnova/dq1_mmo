@@ -188,16 +188,20 @@ local function bind_handlers(self)
       )
     end
     local afk_n = tonumber(data.afk_count)
-    local combat_n = tonumber(data.nearby_combat)
+    local fighting_n = tonumber(data.combat_count)
+    local nearby_combat = tonumber(data.nearby_combat)
     local nearby_afk = tonumber(data.nearby_afk)
     if afk_n and afk_n > 0 then
       extra = extra .. string.format(" · AFK %d", afk_n)
     end
+    if fighting_n and fighting_n > 0 then
+      extra = extra .. string.format(" · fighting %d", fighting_n)
+    end
     if nearby_afk and nearby_afk > 0 then
       extra = extra .. string.format(" · near AFK %d", nearby_afk)
     end
-    if combat_n and combat_n > 0 then
-      extra = extra .. string.format(" · combat %d", combat_n)
+    if nearby_combat and nearby_combat > 0 then
+      extra = extra .. string.format(" · near combat %d", nearby_combat)
     end
     UI.toast(string.format("Online %d · nearby %d%s%s", roster_n, n, zone_bit, extra), "info")
   end)
@@ -219,7 +223,14 @@ local function bind_handlers(self)
     local names = {}
     for _, p in ipairs(data.players or {}) do
       if p.name then
-        names[#names + 1] = tostring(p.name)
+        local tag = ""
+        if p.in_combat then
+          tag = tag .. "⚔"
+        end
+        if p.afk then
+          tag = tag .. "💤"
+        end
+        names[#names + 1] = tostring(p.name) .. tag
       end
     end
     local bit = (#names > 0) and (" · " .. table.concat(names, ", ")) or " · none"
@@ -264,13 +275,24 @@ local function bind_handlers(self)
     if data.x ~= nil and data.y ~= nil then
       pop = pop .. string.format(" · (%d,%d)", tonumber(data.x) or 0, tonumber(data.y) or 0)
     end
+    local zc = tonumber(data.zone_combat)
+    if zc and zc > 0 then
+      pop = pop .. string.format(" · combat %d", zc)
+    end
     -- Same-zone roster (names only — no other players' coordinates)
     local here = data.players
     if type(here) == "table" and #here > 0 then
       local names = {}
       for i = 1, math.min(#here, 8) do
         local p = here[i]
-        names[#names + 1] = tostring(p.name or "?")
+        local tag = ""
+        if p.in_combat then
+          tag = tag .. "⚔"
+        end
+        if p.afk then
+          tag = tag .. "💤"
+        end
+        names[#names + 1] = tostring(p.name or "?") .. tag
       end
       local extra = (#here > 8) and (" +" .. tostring(#here - 8)) or ""
       pop = pop .. " · here: " .. table.concat(names, ", ") .. extra
@@ -556,6 +578,34 @@ local function bind_handlers(self)
       line = line .. " (they are AFK)"
     end
     UI.toast(tostring(line), "ok")
+  end)
+
+  Network.on("poke", function(data)
+    local line = data.message or "Poke."
+    if data.target_afk then
+      if data.target_afk_message and data.target_afk_message ~= "" then
+        line = line .. " (AFK: " .. tostring(data.target_afk_message) .. ")"
+      else
+        line = line .. " (they are AFK)"
+      end
+    end
+    UI.toast(tostring(line), "info")
+  end)
+
+  Network.on("askwhere", function(data)
+    local line = data.message or "Location request."
+    if data.target_afk then
+      if data.target_afk_message and data.target_afk_message ~= "" then
+        line = line .. " (AFK: " .. tostring(data.target_afk_message) .. ")"
+      else
+        line = line .. " (they are AFK)"
+      end
+    end
+    -- Incoming request: hint how to answer with share
+    if type(line) == "string" and line:find("asks where") then
+      line = line .. " · /share @last"
+    end
+    UI.toast(tostring(line), "info")
   end)
 
   Network.on("lastinvite", function(data)
@@ -1276,6 +1326,21 @@ function Overworld:keypressed(key)
           or text:match("^[/%!]sharepos%s+(%S+)$")
         local wants_share_last = text:match("^[/%!]share%s*$")
           or text:match("^[/%!]sharepos%s*$")
+        local poke_tgt = text:match("^[/%!]poke%s+(%S+)$")
+          or text:match("^[/%!]nudge%s+(%S+)$")
+          or text:match("^[/%!]hey%s+(%S+)$")
+        local wants_poke_last = text:match("^[/%!]poke%s*$")
+          or text:match("^[/%!]nudge%s*$")
+        local askwhere_tgt = text:match("^[/%!]askwhere%s+(%S+)$")
+          or text:match("^[/%!]ask_where%s+(%S+)$")
+          or text:match("^[/%!]askpos%s+(%S+)$")
+          or text:match("^[/%!]locate%s+(%S+)$")
+          or text:match("^[/%!]whereru%s+(%S+)$")
+        local wants_askwhere_last = text:match("^[/%!]askwhere%s*$")
+          or text:match("^[/%!]ask_where%s*$")
+          or text:match("^[/%!]askpos%s*$")
+          or text:match("^[/%!]locate%s*$")
+          or text:match("^[/%!]whereru%s*$")
         local wants_quit = text:match("^[/%!]quit%s*$")
           or text:match("^[/%!]logout%s*$")
           or text:match("^[/%!]exit%s*$")
@@ -1483,6 +1548,30 @@ function Overworld:keypressed(key)
             Network.share("@last")
           else
             Network.send({ type = "share", to = "@last" })
+          end
+        elseif poke_tgt and poke_tgt ~= "" then
+          if Network.poke then
+            Network.poke(poke_tgt)
+          else
+            Network.send({ type = "poke", to = poke_tgt })
+          end
+        elseif wants_poke_last then
+          if Network.poke then
+            Network.poke("@last")
+          else
+            Network.send({ type = "poke", to = "@last" })
+          end
+        elseif askwhere_tgt and askwhere_tgt ~= "" then
+          if Network.askwhere then
+            Network.askwhere(askwhere_tgt)
+          else
+            Network.send({ type = "askwhere", to = askwhere_tgt })
+          end
+        elseif wants_askwhere_last then
+          if Network.askwhere then
+            Network.askwhere("@last")
+          else
+            Network.send({ type = "askwhere", to = "@last" })
           end
         elseif wants_stuck then
           Network.send({ type = "stuck" })

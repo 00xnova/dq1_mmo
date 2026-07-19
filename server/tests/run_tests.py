@@ -166,6 +166,9 @@ def main() -> int:
         "tests.test_adversarial_hunt_v0594",
         "tests.test_features_v0595",
         "tests.test_mp_reliability_v0596",
+        "tests.test_features_v0597",
+        "tests.test_features_v0598",
+        "tests.test_mp_reliability_v0598",
     ):
         print(f"\n[{mod}]")
         p, f, err = run_module(mod)

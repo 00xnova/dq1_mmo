@@ -320,6 +320,21 @@ function Network.share(to_name)
   return Network.send({ type = "share", to = tostring(to_name) })
 end
 
+function Network.poke(to_name)
+  if to_name == nil or tostring(to_name) == "" then
+    return Network.send({ type = "poke", to = "@last" })
+  end
+  return Network.send({ type = "poke", to = tostring(to_name) })
+end
+
+--- Ask peer to share their location (they can /share @last).
+function Network.askwhere(to_name)
+  if to_name == nil or tostring(to_name) == "" then
+    return Network.send({ type = "askwhere", to = "@last" })
+  end
+  return Network.send({ type = "askwhere", to = tostring(to_name) })
+end
+
 function Network.look(name_or_id)
   if name_or_id == nil or name_or_id == "" then
     -- bare look → server examines self

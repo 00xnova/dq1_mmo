@@ -54,6 +54,23 @@ def _format_uptime(seconds: int) -> str:
     return f"{sec}s"
 
 
+def _afk_snap(meta: dict[str, Any] | None) -> tuple[bool, str | None]:
+    """Capture manual AFK + status before allow_chat (which clears AFK).
+
+    Used so failed private delivery can refund_chat(..., restore_afk=True)
+    and keep census / badges honest after a multiplayer send race.
+    """
+    if not meta:
+        return False, None
+    was = bool(meta.get("afk"))
+    msg_txt: str | None = None
+    if was:
+        am = meta.get("afk_message")
+        if isinstance(am, str) and am.strip():
+            msg_txt = am.strip()[:48]
+    return was, msg_txt
+
+
 def _parse_positive_qty(raw: Any) -> int | None:
     """Parse buy/sell/discard quantity. Returns int >= 1 or None if invalid.
 
@@ -994,6 +1011,8 @@ async def handle_message(
                     {"cmd": "decline", "hint": "/decline · /later — decline last invite"},
                     {"cmd": "lastinvite", "hint": "/lastinvite — who invited you last"},
                     {"cmd": "share", "hint": "/share Name — privately share your zone + coords"},
+                    {"cmd": "poke", "hint": "/poke Name · /nudge @last — get their attention"},
+                    {"cmd": "askwhere", "hint": "/askwhere Name · /locate @last — ask them to /share"},
                     {"cmd": "fighting", "hint": "/fighting · /combats — nearby heroes in combat"},
                     {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
                     {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
@@ -1297,6 +1316,7 @@ async def handle_message(
         from network.websocket_manager import _is_idle as _idle_chk
 
         was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
         ok_chat, retry = manager.allow_chat(character_id)
         if not ok_chat:
             outbound.append(
@@ -1348,7 +1368,9 @@ async def handle_message(
             invite_msg["session_id"] = sid_i
         delivered = await manager.send(target_id, invite_msg)
         if not delivered:
-            manager.refund_chat(character_id)
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         # Remember as social peer for /r and /invite @last
@@ -1507,6 +1529,7 @@ async def handle_message(
         from network.websocket_manager import _is_idle as _idle_chk
 
         was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
         ok_chat, retry = manager.allow_chat(character_id)
         if not ok_chat:
             outbound.append(
@@ -1558,13 +1581,266 @@ async def handle_message(
             share_msg["session_id"] = sid_s
         delivered = await manager.send(target_id, share_msg)
         if not delivered:
-            manager.refund_chat(character_id)
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         manager.note_whisper_from(character_id, target_id, tname)
         manager.note_whisper_from(target_id, character_id, name)
         echo = dict(share_msg)
         echo["message"] = f"Location shared with {tname}."
+        target_afk = bool((tmeta or {}).get("afk"))
+        if target_afk:
+            echo["target_afk"] = True
+            am = (tmeta or {}).get("afk_message")
+            if isinstance(am, str) and am.strip():
+                echo["target_afk_message"] = am.strip()[:48]
+        outbound.append(echo)
+        if was_idle:
+            await manager.publish_status(character_id)
+        return character_id, user_id, outbound, None
+
+    # --- Poke / nudge (private multiplayer attention, not a party) ---
+    if msg_type in ("poke", "nudge", "hey", "attention", "tap"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        want_last = bool(data.get("reply")) or (
+            isinstance(target_name, str)
+            and target_name.strip().lower() in ("@last", "last", "!")
+        )
+        raw_pid = None
+        if data.get("to_id") is not None:
+            raw_pid = data.get("to_id")
+        elif data.get("player_id") is not None:
+            raw_pid = data.get("player_id")
+        target_id = (
+            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
+        )
+        if raw_pid is not None and target_id is None:
+            from network.websocket_manager import coerce_character_id
+
+            if coerce_character_id(raw_pid) is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if want_last and target_id is None:
+            lid, lname = manager.last_whisper_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_emote_to(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_to(character_id)
+            if lid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to poke"))
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            if not want_last:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
+        if target_id is None:
+            if not (
+                isinstance(target_name, str) and target_name.strip()
+            ) and raw_pid is None and not want_last:
+                outbound.append(msg(ServerMessageType.ERROR, reason="poke target required"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if target_id == character_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot poke yourself"))
+            return character_id, user_id, outbound, None
+        if target_id not in manager.online_ids():
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(target_id, character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(character_id, target_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+            return character_id, user_id, outbound, None
+        meta_pre = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
+        ok_chat, retry = manager.allow_chat(character_id)
+        if not ok_chat:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        tmeta = manager.get_meta(target_id)
+        name = (meta or {}).get("name") or "Hero"
+        tname = (tmeta or {}).get("name") or (
+            target_name.strip() if isinstance(target_name, str) else "Hero"
+        )
+        poke_line = f"{name} is trying to get your attention."
+        poke_msg: dict = {
+            "type": "poke",
+            "from": name,
+            "from_id": character_id,
+            "to": tname,
+            "to_id": target_id,
+            "message": poke_line,
+        }
+        sid_p = manager.session_id(character_id)
+        if sid_p is not None:
+            poke_msg["session_id"] = sid_p
+        delivered = await manager.send(target_id, poke_msg)
+        if not delivered:
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        manager.note_whisper_from(character_id, target_id, tname)
+        manager.note_whisper_from(target_id, character_id, name)
+        echo = dict(poke_msg)
+        echo["message"] = f"You poked {tname}."
+        target_afk = bool((tmeta or {}).get("afk"))
+        if target_afk:
+            echo["target_afk"] = True
+            am = (tmeta or {}).get("afk_message")
+            if isinstance(am, str) and am.strip():
+                echo["target_afk_message"] = am.strip()[:48]
+        outbound.append(echo)
+        if was_idle:
+            await manager.publish_status(character_id)
+        return character_id, user_id, outbound, None
+
+    # --- Ask where (private location request — they may /share @last) ---
+    if msg_type in (
+        "askwhere",
+        "ask_where",
+        "askpos",
+        "ask_pos",
+        "locate",
+        "whereru",
+        "where_r_u",
+        "whereyou",
+    ):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        target_name = data.get("to") or data.get("name") or data.get("target") or data.get("player")
+        want_last = bool(data.get("reply")) or (
+            isinstance(target_name, str)
+            and target_name.strip().lower() in ("@last", "last", "!")
+        )
+        raw_pid = None
+        if data.get("to_id") is not None:
+            raw_pid = data.get("to_id")
+        elif data.get("player_id") is not None:
+            raw_pid = data.get("player_id")
+        target_id = (
+            manager.find_id_by_player_id(raw_pid) if raw_pid is not None else None
+        )
+        if raw_pid is not None and target_id is None:
+            from network.websocket_manager import coerce_character_id
+
+            if coerce_character_id(raw_pid) is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if want_last and target_id is None:
+            lid, lname = manager.last_whisper_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_emote_to(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_from(character_id)
+            if lid is None:
+                lid, lname = manager.last_invite_to(character_id)
+            if lid is None:
+                outbound.append(msg(ServerMessageType.ERROR, reason="no one to ask"))
+                return character_id, user_id, outbound, None
+            target_id = lid
+            target_name = lname
+        if target_id is None and isinstance(target_name, str) and target_name.strip():
+            if not want_last:
+                tid, nerr = manager.resolve_live_name(target_name)
+                if nerr == "name ambiguous":
+                    outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
+                    return character_id, user_id, outbound, None
+                target_id = tid
+        if target_id is None:
+            if not (
+                isinstance(target_name, str) and target_name.strip()
+            ) and raw_pid is None and not want_last:
+                outbound.append(msg(ServerMessageType.ERROR, reason="askwhere target required"))
+            else:
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if target_id == character_id:
+            outbound.append(msg(ServerMessageType.ERROR, reason="cannot ask yourself"))
+            return character_id, user_id, outbound, None
+        if target_id not in manager.online_ids():
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(target_id, character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="player unavailable"))
+            return character_id, user_id, outbound, None
+        if manager.is_ignored_by(character_id, target_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+            return character_id, user_id, outbound, None
+        meta_pre = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
+        ok_chat, retry = manager.allow_chat(character_id)
+        if not ok_chat:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        tmeta = manager.get_meta(target_id)
+        name = (meta or {}).get("name") or "Hero"
+        tname = (tmeta or {}).get("name") or (
+            target_name.strip() if isinstance(target_name, str) else "Hero"
+        )
+        req_line = f"{name} asks where you are. /share @last to reply."
+        req_msg: dict = {
+            "type": "askwhere",
+            "from": name,
+            "from_id": character_id,
+            "to": tname,
+            "to_id": target_id,
+            "message": req_line,
+        }
+        sid_a = manager.session_id(character_id)
+        if sid_a is not None:
+            req_msg["session_id"] = sid_a
+        delivered = await manager.send(target_id, req_msg)
+        if not delivered:
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
+            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            return character_id, user_id, outbound, None
+        manager.note_whisper_from(character_id, target_id, tname)
+        manager.note_whisper_from(target_id, character_id, name)
+        echo = dict(req_msg)
+        echo["message"] = f"You asked {tname} where they are."
         target_afk = bool((tmeta or {}).get("afk"))
         if target_afk:
             echo["target_afk"] = True
@@ -1649,6 +1925,7 @@ async def handle_message(
         from network.websocket_manager import _is_idle as _idle_chk
 
         was_idle = _idle_chk(meta_pre) if meta_pre else False
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
         ok_chat, retry = manager.allow_chat(character_id)
         if not ok_chat:
             outbound.append(
@@ -1685,7 +1962,9 @@ async def handle_message(
             reply_msg["session_id"] = sid_r
         delivered = await manager.send(lid, reply_msg)
         if not delivered:
-            manager.refund_chat(character_id)
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         # Consume invite so double-accept cannot spam the inviter
@@ -1723,6 +2002,7 @@ async def handle_message(
                 nearby_count=len(manager.ids_nearby(character_id)),
                 online=len(manager.online_ids()),
                 afk_count=manager.afk_count(),
+                combat_count=manager.combat_count(),
                 message=f"{n} nearby fighting · {name_bit}",
             )
         )
@@ -2940,6 +3220,7 @@ async def handle_message(
             from network.websocket_manager import _is_idle as _idle_chk
 
             was_idle = _idle_chk(meta_pre)
+        was_afk, afk_msg_snap = _afk_snap(meta_pre)
         allowed, retry = manager.allow_chat(character_id)
         if not allowed:
             outbound.append(
@@ -2978,7 +3259,9 @@ async def handle_message(
         delivered = await manager.send(target_id, whisper_msg)
         if not delivered:
             # Don't punish sender for multiplayer delivery races
-            manager.refund_chat(character_id)
+            manager.refund_chat(
+                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
+            )
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
         # Sender echo may note AFK so UI can show "they may not reply"
@@ -3074,6 +3357,7 @@ async def handle_message(
             from network.websocket_manager import _is_idle as _idle_chk
 
             was_idle_w = _idle_chk(meta) if meta else False
+            was_afk_w, afk_msg_w = _afk_snap(meta)
             allowed, retry = manager.allow_chat(character_id)
             if not allowed:
                 outbound.append(
@@ -3108,7 +3392,9 @@ async def handle_message(
                     target_afk_msg_w = amw.strip()[:48]
             delivered = await manager.send(target_id, whisper_msg)
             if not delivered:
-                manager.refund_chat(character_id)
+                manager.refund_chat(
+                    character_id, restore_afk=was_afk_w, afk_message=afk_msg_w
+                )
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
             echo_w = dict(whisper_msg)

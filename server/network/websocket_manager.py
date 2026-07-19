@@ -994,16 +994,34 @@ class ConnectionManager:
         meta["afk_message"] = None
         return was_afk
 
-    def refund_chat(self, character_id: int) -> None:
+    def refund_chat(
+        self,
+        character_id: int,
+        *,
+        restore_afk: bool = False,
+        afk_message: str | None = None,
+    ) -> None:
         """Undo the last allow_chat stamp (failed whisper delivery, etc.).
 
         Lets the next legitimate chat succeed without waiting out the interval
         after a multiplayer send race (target socket died mid-deliver).
+
+        When allow_chat cleared manual AFK before a failed send, pass
+        restore_afk=True so peers still see an honest AFK badge.
         """
         meta = self._meta.get(character_id)
         if meta is None:
             return
         meta["last_chat_at"] = 0.0
+        if restore_afk:
+            was = bool(meta.get("afk"))
+            meta["afk"] = True
+            if not was or meta.get("afk_since") is None:
+                meta["afk_since"] = time.monotonic()
+            if isinstance(afk_message, str) and afk_message.strip():
+                meta["afk_message"] = sanitize_afk_message(afk_message)
+            else:
+                meta["afk_message"] = None
 
     async def publish_status(self, character_id: int, *, pulse_online: bool = False) -> None:
         """Broadcast current public status (level, combat) to AOI peers.

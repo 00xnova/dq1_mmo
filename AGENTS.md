@@ -17,19 +17,20 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share location · fighting peek · nearby_combat census · AFK notices · afk_count on peeks/health | Final commercial art (placeholders OK to replace) |
+| Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · poke/nudge · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.96` (`server/config.py` → `VERSION`) · **448** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.98` (`server/config.py` → `VERSION`) · **460** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.96** / **448** until the suite or `VERSION` changes.  
-Last **pushed** ship: `824e15b` (v0.5.92). Local tree includes **0.5.93–0.5.96** uncommitted.  
-**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
+Keep badges at **0.5.98** / **460** until the suite or `VERSION` changes.  
+Last **pushed** ship: `c199e5b` (v0.5.96). Local tree includes **0.5.98** uncommitted.  
+**Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
+Docs pass (**this run**): badges **0.5.98 / 460** · README beautified for GitHub · HUMAN / docs map plain-language `/askwhere` + AFK restore · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -136,6 +137,8 @@ All messages are JSON objects with a `type` string.
 | `invite` / `meet` / `beckon` / `come` | `to`/`to_id` or `@last` | Private meetup invite (zone; coords only if nearby). Not a party. Chat-rate. |
 | `cancel` / `uninvite` / `invite_cancel` | — | Cancel your last outgoing invite. Chat-rate. |
 | `share` / `sharepos` | `to`/`to_id` or `@last` | Private share of your zone + coords. Chat-rate. |
+| `askwhere` / `ask_where` / `askpos` / `locate` / `whereru` | `to`/`to_id` or `@last` | Private “where are you?” request (target may `/share @last`). Chat-rate. |
+| `poke` / `nudge` / `hey` / `attention` / `tap` | `to`/`to_id` or `@last` | Private attention ping. Chat-rate. |
 | `lastinvite` / `last_invite` | — | Who last invited you (soft-grace). Rate-exempt. |
 | `accept` / `coming` / `invite_accept` | — | Private reply to last inviter “is coming”. Chat-rate. |
 | `decline` / `later` / `invite_decline` | — | Private decline of last invite. Chat-rate. |
@@ -270,7 +273,7 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 68. Defeat broadcasts nearby **system** chat `"{name} was defeated!"` (both combat end paths).
 69. Reserved hero names include god/null/npc/staff/… (spoof system identity).
 70. `inventory_update` includes `bag: {used, max_slots, max_stack}` for client UI.
-71. Whisper: `send()` failure → `player not online` (no self-echo / no reply peer note) + **`refund_chat`** so rate is not burned.
+71. Whisper: `send()` failure → `player not online` (no self-echo / no reply peer note) + **`refund_chat`** so rate is not burned; if manual AFK was set pre-`allow_chat`, pass **`restore_afk=True`** + prior `afk_message`.
 72. `sync` / join `world_state`: `zones`, `roster`, `nearby_count`, `session_id` for multiplayer resync.
 73. `/roll` · `/dice` (msg `roll`/`dice`/`d100`) → nearby system 1dN (default 100); chat-rate limited.
 74. Combat start → nearby system `"{name} is fighting!"` (not to self).
@@ -286,7 +289,7 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 84. `look` card always includes **zone** (coords only when nearby).
 85. Presence payloads carry **`session_id`**: `player_joined`, `player_moved`, `player_left`, `player_update` (reconnect hygiene).
 86. Join path: `auth_ok` + first `world_state` include **`ignores`**, **`last_whisper`**, `repel`/`radiant` (soft-grace restore to client).
-87. `manager.refund_chat(cid)` clears `last_chat_at` after failed multiplayer delivery.
+87. `manager.refund_chat(cid, *, restore_afk=False, afk_message=None)` clears `last_chat_at` after failed multiplayer delivery; optional restore of manual AFK + status (census honesty).
 88. Combat soft-reconnect: after `connect`, if `in_combat` → `publish_status(..., pulse_online=True)`.
 89. `player_left` on disconnect includes `session_id` from leaving meta when present.
 90. Bare `look` (no name/id) examines **self**; empty name string same.
@@ -397,6 +400,13 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 195. **Find `combat:yes|no`** / bare `fighting` filter (no coords); invalid → `invalid combat filter`.
 196. **Cancel after accept:** only notifies guest if their `last_invite_from` still points at inviter (no spam cancel).
 197. Tests: `test_mp_reliability_v0596`.
+198. **Poke/nudge:** `poke`/`nudge`/`hey`/`attention`/`tap` — private attention ping; whisper privacy + ignore; `@last`; notes `/r` peers; send fail → `refund_chat(..., restore_afk=…)`.
+199. Fighting peek includes global **`combat_count`**; client who/near/zone toasts show fighting census + ⚔/💤 name tags.
+200. Tests: `test_features_v0597`.
+201. **`_afk_snap(meta)`** before every private social `allow_chat`; on `send()` failure call `refund_chat(..., restore_afk=was_afk, afk_message=…)`. Paths: whisper, channel whisper, invite, share, poke, askwhere, accept/decline.
+202. **Askwhere:** `askwhere`/`ask_where`/`askpos`/`locate`/`whereru`/`where_r_u`/`whereyou` — private location request; whisper privacy + ignore; `@last`; notes `/r` both ways; target may `/share @last`; send fail → refund + restore AFK.
+203. Failed accept/decline does **not** clear invite memory (retry possible); successful delivery still consumes invite.
+204. Tests: `test_features_v0598` + `test_mp_reliability_v0598`.
 
 ## Tests (mandatory for your changes)
 
@@ -500,6 +510,9 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_hunt_v0594` | double accept blocked; accept→/r; float roll sides; fighting self; ignore accept |
 | `tests.test_features_v0595` | cancel invite; share location; share ignore; help |
 | `tests.test_mp_reliability_v0596` | combat_count census; find combat filter; cancel after accept; share/whisper |
+| `tests.test_features_v0597` | poke/nudge; ignore; bool to_id; fighting combat_count; help |
+| `tests.test_features_v0598` | askwhere/locate; share @last loop; ignore; bool to_id; who census regression |
+| `tests.test_mp_reliability_v0598` | refund_chat restore_afk unit; whisper/invite/share/poke/askwhere/accept fail restore AFK |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

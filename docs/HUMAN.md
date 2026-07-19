@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.96-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-448-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.98-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-460-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.96 · **448** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.98 · **460** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.96):** full meetup loop — **`/invite` · `/share` · `/accept` · `/decline` · `/cancel`** · **`/fighting`** · **`/busy` · `/wave @last`** · starter clothes + herbs · **448** tests.
+**Recent for players/ops (v0.5.98):** **`/askwhere` · `/locate`** (ask a hero where they are — they **`/share @last`**) · if a private message fails mid-send, your **AFK badge stays honest** · full meetup loop (**invite · share · poke · accept**) · **460** tests.
 
 ---
 
@@ -35,7 +35,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · **`/buy copper sword`** (friendly names) · equip · **`/discard`** (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
-| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/share` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/invite` · `/cancel` · `/share` · `/askwhere` · `/poke` · `/accept` · `/decline` · `/fighting`** · **`/wave` · `/wave @last`** · **`/lastemote`** · emotes · **`/roll`** · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat counts |
 | **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
@@ -151,6 +151,8 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/accept** · **/coming** · **/decline** · **/later** | Answer the last invite you received (one answer only) |
 | **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice) |
 | **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) |
+| **/askwhere Name** · **/locate @last** | Ask them where they are — they can **/share @last** to answer |
+| **/poke Name** · **/nudge @last** | Private “trying to get your attention” (not a party) |
 | **/lastinvite** | Who last invited you |
 | **/fighting** · **/combats** | List nearby heroes currently in combat |
 | **/shop** · **/buy copper sword** · **/sell herb 2** | Town shop — **display names or ids** (spaces OK; unique short names work) |
@@ -210,7 +212,7 @@ Nearby list still shows coordinates for people you can see.
 Roster updates also keep **town / field / dungeon** counts so you can see where people are gathering.
 
 Your own chat and emotes always appear once in your log (global, nearby, and zone).  
-Failed whispers (yourself, offline targets, or a dropped connection) do not block the next message you try to send.
+Failed whispers and private social messages (yourself, offline targets, or a dropped connection) do **not** block the next message you try to send — and if you were AFK, your AFK badge stays on after a failed delivery.
 
 **Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.  
 Chatting, whispering, emoting, or **walking** clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
@@ -238,7 +240,7 @@ Whispering someone who is AFK still delivers the message; you get a short note t
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /shop · /buy copper sword · /cast · /afk · /stuck · /who · /find · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /invite · /share · /askwhere · /poke · /shop · /cast · /afk · /stuck · /who · /find · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · D discard · U unequip · Tab shop |
 
@@ -300,7 +302,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 448 passed
+# expect: 460 passed
 ```
 
 ---
@@ -314,11 +316,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.96** · **448** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.98** · **460** tests).
 
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/cast` `/buy` `/discard` `/stuck` `/ping` `/zone` …) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/askwhere` `/share` `/cast` `/buy` `/stuck` …) | Document unfinished features as shipped |
+| Use plain language for players | Leak message-type catalogs or test matrices |
 
 Index & rules → [docs/README.md](README.md)

@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.96** (2026-07-19) · suite **448** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `824e15b` (v0.5.92) · local **0.5.93–0.5.96** · README dual tips + audience callout
+**Last docs refresh:** **v0.5.98** (2026-07-19) · suite **460** tests · `VERSION` in `server/config.py` · **humans ≠ agents** · last push `c199e5b` (v0.5.96) · local **0.5.98** · README beautified · `/askwhere` + AFK restore documented for humans
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -81,10 +81,12 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
 - **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · emote shortcuts (`/bow`, …)
-- **Meetup loop (not a party):** **`/invite` · `/share` · `/accept` · `/decline` · `/cancel` · `/lastinvite`**
-- **`/fighting`** — nearby heroes in combat · **`/busy`** AFK alias
-- **`/near` · `/who` · `/zone`** show AFK / combat censuses
-- Safer multiplayer IDs · invite one-answer hygiene · clean dice sizes
+- **Meetup loop (not a party):** **`/invite` · `/share` · `/askwhere` · `/accept` · `/decline` · `/cancel` · `/lastinvite`**
+- **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
+- **`/poke` · `/nudge`** — private attention ping · **`/fighting`** nearby combat list
+- **`/find combat:yes`** · **`/who`** fighting census · near/zone ⚔💤 name tags
+- Failed private messages (whisper / invite / share / poke / askwhere) do not block the next chat line; **AFK stays on** if you were away
+- **`/busy`** AFK alias · safer multiplayer IDs · invite one-answer hygiene
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, walk, or `/stuck`
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up (plus reason if set)
