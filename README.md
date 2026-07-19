@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/look</code> near/far · <code>/ignores</code> near · far · zone · two-way social memory · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/afk lunch</code> with zone context · <code>/ignores</code> near · far · zone · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -89,7 +89,7 @@
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-/played_·_mute_·_social-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
-  <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_lunch-f97316?style=flat-square" />
+  <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_·_zone_·_nearby-f97316?style=flat-square" />
   <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/share_·_/wave-ec4899?style=flat-square" />
   <img alt="wave" src="https://img.shields.io/badge/waves-two--way_memory-f472b6?style=flat-square" />
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
@@ -153,12 +153,14 @@ protocol · tests · reliability
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
+  <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-zone_·_nearby-f97316?style=for-the-badge" />
 </p>
 
 <p align="center">
   <img alt="loop" src="https://img.shields.io/badge/loop-town_→_field_→_fight_→_shop_→_social-334155?style=for-the-badge" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
   <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
+  <img alt="afkloop" src="https://img.shields.io/badge/afk-/busy_→_/back-f97316?style=for-the-badge" />
 </p>
 
 ```mermaid
@@ -244,20 +246,34 @@ flowchart LR
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#334155', 'primaryTextColor': '#f8fafc', 'lineColor': '#94a3b8', 'secondaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#7c2d12', 'primaryTextColor': '#ffedd5', 'lineColor': '#fdba74', 'secondaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph mute ["Mute loop"]
-    I["/ignore Hero"] --> C["Muted Hero [near · town]"]
-    C --> L["/ignores"]
-    L --> U["/unignore Hero"]
+  subgraph afk ["AFK loop"]
+    A["/afk lunch"] --> B["You are now AFK · town · nearby"]
+    B --> C["/busy meeting"]
+    C --> D["/back"]
+    D --> E["Welcome back · zone"]
   end
-  subgraph soft ["Brief drop ~1 min"]
-    L --> S[Mute list restored]
+  subgraph peers ["Nearby heroes"]
+    B --> N["System: Hero is now AFK"]
+    E --> N2["System: Hero is back"]
   end
 ```
 
 <table>
 <tr>
+<td width="12%" valign="top" align="center">
+
+### ☕ AFK
+| | |
+|:--|:--|
+| **`/afk`** | away |
+| **`/busy`** | same |
+| **`/back`** | return |
+
+<sub>zone · nearby · online</sub>
+
+</td>
 <td width="12%" valign="top" align="center">
 
 ### 🔇 Mute
@@ -530,7 +546,7 @@ flowchart TB
 | 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect |
 | 🛒 | **`/buy copper sword`** · **`/sell`** · **`/use`** · **`/equip`** · **`/shop`** |
 | ✨ | **`/cast`** · **`/repel`** · **`/return`** field magic from chat |
-| ☕ | **`/afk lunch`** · **`/busy`** · **`/back`** |
+| ☕ | **`/afk lunch`** · **`/busy`** · **`/back`** (zone · nearby · online on confirm) |
 | 🔑 | Email accounts can **change password** via API |
 | 🦸 | Up to **3 heroes** · start with **clothes** + **3 herbs** |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
@@ -741,7 +757,7 @@ python tests/run_tests.py
 | **/played** · **/session** | How long this session has been open (+ zone / online) |
 | **/profile** · **/card** · **/whereis** | Look / examine a hero (or yourself) |
 | **/mapinfo** | Same as **/zone** — area + who is here |
-| **/motd** · **/afk [reason]** · **/busy [reason]** · **/back** · **/quit** | Welcome · AFK · leave world |
+| **/motd** · **/afk [reason]** · **/busy [reason]** · **/back** · **/quit** | Welcome · AFK (zone · nearby on confirm) · leave world |
 | **/block** · **/blocklist** · **/ignores** · **/unblock** | Mute list (near/far when online) |
 | **/ignore** · **/unignore** · **/ignores** | Mute list |
 | **/inn** · **/rest** | Inn cost quote |
@@ -845,7 +861,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/version` · `/server` · `/info` · `/time` · `/whoami` | Server info · self sheet |
 | `/played` · `/session` | This connection’s age |
 | `/mapinfo` · `/zone` · `/where` | Your area + who is here |
-| `/motd` · `/afk [reason]` · `/busy [reason]` · `/back` · `/quit` | Welcome · AFK badge · leave world |
+| `/motd` · `/afk [reason]` · `/busy [reason]` · `/back` · `/quit` | Welcome · AFK badge (zone · nearby) · leave world |
 | `/block` · `/blocklist` · `/ignore` · `/unignore` · `/ignores` | Mute list (near/far when online) |
 | `/inn` · `/rest` | Inn cost quote |
 | `/help` · **?** | Command list |
@@ -1034,12 +1050,20 @@ flowchart LR
   <a href="https://github.com/Im-Nova-Dev/dq1_mmo">
     <img alt="dq1_mmo" src="https://github-readme-stats.vercel.app/api/pin/?username=Im-Nova-Dev&repo=dq1_mmo&theme=radical&hide_border=true" />
   </a>
+  &nbsp;
+  <a href="https://github.com/Im-Nova-Dev/dq1_mmo/stargazers">
+    <img alt="stars" src="https://img.shields.io/github/stars/Im-Nova-Dev/dq1_mmo?style=for-the-badge&logo=github&color=fbbf24" />
+  </a>
 </p>
 
 <p align="center">
   <a href="https://skillicons.dev">
     <img alt="stack" src="https://skillicons.dev/icons?i=py,fastapi,lua,sqlite,linux,github&theme=dark" />
   </a>
+</p>
+
+<p align="center">
+  <img alt="top lang" src="https://github-readme-stats.vercel.app/api/top-langs/?username=Im-Nova-Dev&layout=compact&theme=radical&hide_border=true&langs_count=6&hide=html,css" height="140" />
 </p>
 
 <p align="center">

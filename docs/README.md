@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.132** (2026-07-19) · suite **683** tests · AFK/busy/back multiplayer census · humans ≠ agents
+**Last docs refresh:** **v0.5.132** (2026-07-19) · suite **683** tests · AFK README polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

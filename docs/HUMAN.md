@@ -23,7 +23,8 @@ Protocol tables and test matrices stay **out** of this guide.
 **Recent for players/ops (v0.5.132):** **`/afk`**, **`/busy`**, and **`/back`** confirm with zone and nearby counts · help/keys/motd still show room census · **683** tests.
 
 > [!TIP]
-> **Mute without drama:** **`/ignore Hero`** · check **`/ignores`** (near · far · zone) · **`/unignore Hero`** when you’re ready. After a brief disconnect, the list comes back.
+> **Step away cleanly:** **`/afk lunch`** or **`/busy meeting`** · nearby heroes may see a system line · **`/back`** when you return. Confirms mention zone and nearby counts.  
+> **Mute without drama:** **`/ignore Hero`** · **`/ignores`** (near · far · zone) · **`/unignore Hero`**.
 
 ---
 
