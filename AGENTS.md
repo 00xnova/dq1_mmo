@@ -17,16 +17,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
 | Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/lastwhisper/look/find/status/ignore/roll/counts, who/players/near/zone + idle/AFK roster + session_id | Multi-map worlds |
-| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs · vitals/xp/buffs/`played` peeks · keys/controls · unequip · profile/mapinfo/server aliases | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/buffs` · `/keys` · `/last` · `/inspect` · `/played` · auth welcome | Binary protocol |
+| Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs · vitals/xp/buffs/`played` peeks · keys · unequip · profile/mapinfo · stuck/home · yell · emote list | Final commercial art (placeholders OK to replace) |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · `/hp` · `/xp` · `/buffs` · `/keys` · `/last` · `/inspect` · `/played` · `/stuck` · auth welcome | Binary protocol |
 
-**Version:** `0.5.73` (`server/config.py` → `VERSION`) · **339** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.77` (`server/config.py` → `VERSION`) · **359** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
+Keep badges at **0.5.77** / **359** until the suite or `VERSION` changes.  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.
 
 ## Documentation map (do not mix)
@@ -134,6 +135,9 @@ All messages are JSON objects with a `type` string.
 | `version` / `ver` / `about` / `server` / `info` | — | `{version, online, zones, uptime, service}`. Rate-exempt. |
 | `played` / `session` / `session_time` / `online_time` | — | Connection age + multiplayer snapshot (`seconds`, `name`, `zone`, `online`, `nearby_count`, `afk`, `idle`, `message`). Rate-exempt. |
 | `whereis` / `where_is` | `name` or `player_id` | Look alias. Rate-exempt. |
+| `stuck` / `unstuck` / `home` / `recall_home` | — | Free teleport to town spawn; blocked in combat; chat-rate limited. |
+| `yell` / `shout` | `text` | Zone chat (same as channel zone). |
+| `emotes` or `emote`+`list` | — | Emote catalog `{emotes[], message}`. Rate-exempt. |
 | `status` / `me` | — | Self sheet: stats, xp_progress, zone, repel/radiant. Rate-exempt. |
 | `find` / `search` | `q`/`query`/`name`, optional `limit`, optional `zone` | Online roster prefix search (no coords); zone filter town/field/dungeon. Rate-exempt. |
 | `help` / `commands` | — | Command list + version. Rate-exempt. |
@@ -310,6 +314,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 131. `played`/`session`/`session_time`/`online_time` → multiplayer snapshot + pretty `message` (rate-exempt in `main.py`).
 132. `counts.you.played` = session age seconds; zone responses include `session_id`.
 133. Tests: `test_mp_reliability_v0573` + `test_features_v0573` lock played/chat aliases + soft reconnect + regressions.
+134. `stuck`/`unstuck`/`home` → town spawn (`SPAWN_X/Y`); `teleported:false` if already home; combat → `in combat`; uses `allow_chat`.
+135. `yell`/`shout` message types force zone channel; `emotes` / `emote list` returns catalog without performing.
+136. `stuck` already-home checks **before** `allow_chat` (no rate burn). Teleport path: clear AFK, `publish_move`, nearby system “returned to town”, `publish_status`.
+137. Manual AFK stores `afk_since` (monotonic); look/who/public cards + buffs may include `afk_for` seconds.
 128. Auth `world_state`/`auth_ok` include `restored.{ignores,last_whisper,repel,radiant}` after soft grace; welcome may note restores.
 129. Move while in combat → `error` + `move_ok ok=false` reason `in combat` (client reconcile); first join `restored` all false (no false "Restored" welcome).
 
@@ -384,6 +392,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_v0571` | combat move gate; first-join restored; ignore whispers; concurrent peeks |
 | `tests.test_mp_reliability_v0573` | played snapshot; s/g chat; live-replace timer; soft ignore; whisper/who regression |
 | `tests.test_features_v0573` | played unauth; rate-exempt peeks; empty s chat; help whereis |
+| `tests.test_adversarial_v0574` | combat gates; g/s channel override; qty/move edges; AFK whisper; auth fails |
+| `tests.test_features_v0575` | stuck/home town return; yell/shout zone; emote list catalog; help |
+| `tests.test_mp_reliability_v0576` | stuck no rate burn; peer system notice; afk_for; yell/played regression |
+| `tests.test_adversarial_v0577` | stuck auth/combat/home; ambiguous Adv*; clean ignore whisper; channel overrides |
 | `tests.test_features_v0564` | status.you afk; bag/inv aliases; gold; spells |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |

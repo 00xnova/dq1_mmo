@@ -423,6 +423,20 @@ local function bind_handlers(self)
     UI.toast(tostring(data.message or "Session time updated"), "info")
   end)
 
+  Network.on("stuck", function(data)
+    UI.toast(tostring(data.message or "Returned to town."), "info")
+    if data.x and data.y and World.local_player then
+      World.local_player.x = tonumber(data.x) or World.local_player.x
+      World.local_player.y = tonumber(data.y) or World.local_player.y
+      World.server_x = World.local_player.x
+      World.server_y = World.local_player.y
+    end
+  end)
+
+  Network.on("emotes", function(data)
+    UI.toast(tostring(data.message or "Emotes updated"), "info")
+  end)
+
   Network.on("lastwhisper", function(data)
     UI.toast(tostring(data.message or "No one to reply to yet."), "info")
   end)
@@ -1056,6 +1070,12 @@ function Overworld:keypressed(key)
         if not zmsg then
           zmsg = text:match("^[/%!]zone%s+(.+)$")
         end
+        if not zmsg then
+          zmsg = text:match("^[/%!]yell%s+(.+)$")
+        end
+        if not zmsg then
+          zmsg = text:match("^[/%!]shout%s+(.+)$")
+        end
         local wants_status = text:match("^[/%!]status%s*$")
           or text:match("^[/%!]me%s*$")
           or text:match("^[/%!]whoami%s*$")
@@ -1150,6 +1170,12 @@ function Overworld:keypressed(key)
         local say_msg = text:match("^[/%!]say%s+(.+)$") or text:match("^[/%!]s%s+(.+)$")
         local global_msg = text:match("^[/%!]g%s+(.+)$") or text:match("^[/%!]global%s+(.+)$")
         local emote_cmd = text:match("^[/%!]emote%s+(%S+)$") or text:match("^[/%!]e%s+(%S+)$")
+        local wants_emote_list = text:match("^[/%!]emote%s*$")
+          or text:match("^[/%!]emotes%s*$")
+          or text:match("^[/%!]e%s*$")
+        local wants_stuck = text:match("^[/%!]stuck%s*$")
+          or text:match("^[/%!]unstuck%s*$")
+          or text:match("^[/%!]home%s*$")
         local wants_roll = text:match("^[/%!]roll%s*$")
           or text:match("^[/%!]dice%s*$")
           or text:match("^[/%!]d100%s*$")
@@ -1173,8 +1199,16 @@ function Overworld:keypressed(key)
         elseif global_msg and global_msg ~= "" then
           Network.chat(global_msg, "global")
         elseif emote_cmd and emote_cmd ~= "" then
-          Network.emote(emote_cmd:lower())
-          UI.toast("Emote: " .. emote_cmd:lower(), "info")
+          if emote_cmd:lower() == "list" or emote_cmd:lower() == "help" then
+            Network.send({ type = "emotes" })
+          else
+            Network.emote(emote_cmd:lower())
+            UI.toast("Emote: " .. emote_cmd:lower(), "info")
+          end
+        elseif wants_emote_list then
+          Network.send({ type = "emotes" })
+        elseif wants_stuck then
+          Network.send({ type = "stuck" })
         elseif wants_roll or roll_sides then
           local payload = { type = "roll" }
           if roll_sides then

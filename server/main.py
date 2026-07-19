@@ -225,6 +225,7 @@ async def websocket_endpoint(websocket: WebSocket):
                 "exit",
                 "leave_world",
                 "mapinfo",
+                "emotes",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):

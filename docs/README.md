@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.73** (2026-07-19) · suite **339** tests · `VERSION` in `server/config.py` · humans ≠ agents
+**Last docs refresh:** **v0.5.77** (2026-07-19) · suite **359** tests · `VERSION` in `server/config.py` · **humans ≠ agents**
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -65,21 +65,22 @@ Keep these trees separate: player docs stay plain language; agent docs own proto
 - Shop town-only · not in combat · gold toasts · high-tier gear
 - Join welcome may mention nearby heroes
 - Soft reconnect: mute list, last whisper partner, and buffs survive a brief disconnect
+- Brief reconnect can keep your session timer; a full leave starts a fresh one
 - Failed private messages do not block your next chat line
 - `/version` · `/time` · `/whoami` · `/stats` · `/whereami` · `/motd` · `/afk` · `/quit`
 - `/gold` · `/spells` · `/bag` · `/inv` · `/items`
 - `/hp` · `/vitals` · `/xp` · `/level` · `/last` · `/unequip` · `/takeoff`
 - `/buffs` · `/effects` · `/keys` · `/controls` · `/inspect` · `/blocklist`
-- `/played` · `/session` — this connection’s age (+ zone / online) · `/profile` · `/whereis`
-- `/mapinfo` zone alias · `/server` · `/info` version · `/s` nearby · `/g` global
-- Soft reconnect keeps mute list; live socket replace keeps session timer
+- `/played` · `/session` — this connection’s age (+ zone / online)
+- `/profile` · `/whereis` · `/mapinfo` · `/server` · `/info` · `/s` · `/g`
+- `/stuck` · `/unstuck` · `/home` — free town return (nearby system notice) · `/yell` · `/shout` · `/emote` list
+- AFK duration visible on look / online lists
 - `/find afk` · `/find zone:town afk:yes` · join refreshes online list immediately
 - Bare **L** looks at yourself; AFK on status sheet and online lists; clears on chat, emote, or walk
 - Whisper toasts distinguish “to” vs “from”; AFK targets get a quiet heads-up
 - Zone chat only in town/field/dungeon; shout = zone (not world-wide)
 - Online lists update promptly when people leave
 - Safer buy/sell/discard quantities (0 and fractions rejected); bare buy/sell/discard need an item
-- Soft reconnect keeps mute list and last whisper partner
 - Equip / unequip show clear toasts
 - CC0 pixel art (Kenney + Tiny Creatures) + SVG companions
 

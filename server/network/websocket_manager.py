@@ -58,6 +58,13 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
     sid = meta.get("session_id")
     if sid is not None:
         pub["session_id"] = sid
+    if pub["afk"]:
+        try:
+            since = float(meta.get("afk_since") or 0.0)
+            if since > 0:
+                pub["afk_for"] = max(0, int(time.monotonic() - since))
+        except (TypeError, ValueError):
+            pass
     return pub
 
 
@@ -91,6 +98,13 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
     sid = meta.get("session_id")
     if sid is not None:
         card["session_id"] = sid
+    if card["afk"]:
+        try:
+            since = float(meta.get("afk_since") or 0.0)
+            if since > 0:
+                card["afk_for"] = max(0, int(time.monotonic() - since))
+        except (TypeError, ValueError):
+            pass
     return card
 
 
@@ -234,6 +248,7 @@ class ConnectionManager:
                 "last_whisper_from_id": grace_whisper_id,
                 "last_whisper_from_name": grace_whisper_name,
                 "afk": False,  # manual /afk — cleared on back / activity
+                "afk_since": None,  # monotonic when /afk set (for afk_for peeks)
             }
             # Live again — drop any leftover grace bag
             self._soft_grace.pop(character_id, None)
@@ -434,6 +449,7 @@ class ConnectionManager:
         # Moving is activity — clear soft idle + manual AFK
         meta["last_seen"] = now
         meta["afk"] = False
+        meta["afk_since"] = None
         return True, 0.0
 
     def set_level(self, character_id: int, level: int) -> None:
@@ -674,6 +690,7 @@ class ConnectionManager:
         # Chatting is activity (same as move) for idle/AFK badges
         meta["last_seen"] = now
         meta["afk"] = False
+        meta["afk_since"] = None
         return True, 0.0
 
     def set_afk(self, character_id: int, afk: bool) -> bool:
@@ -681,9 +698,13 @@ class ConnectionManager:
         meta = self._meta.get(character_id)
         if meta is None:
             return False
+        now = time.monotonic()
         meta["afk"] = bool(afk)
-        if not afk:
-            meta["last_seen"] = time.monotonic()
+        if afk:
+            meta["afk_since"] = now
+        else:
+            meta["afk_since"] = None
+            meta["last_seen"] = now
         return True
 
     def refund_chat(self, character_id: int) -> None:

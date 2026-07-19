@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.73-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-339-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.77-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-359-059669?style=for-the-badge" />
 </p>
 
 For **people**: players, operators, and human contributors.  
@@ -16,7 +16,7 @@ Coding agents use **[AGENTS.md](../AGENTS.md) only** — you do **not** need tha
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.73 · **339** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.77 · **359** tests · matches `server/config.py` → `VERSION`
 
 ---
 
@@ -31,9 +31,9 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Combat** | Server-side 1v1 · attack · magic · flee · herbs |
 | **Town life** | Inn · shop · equip · sell · discard (bag **12×8**) |
 | **Magic** | Field heal · return · repel · radiant · outside |
-| **Social** | Global · nearby · zone · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** · look · profile · find · who · mapinfo |
+| **Social** | Global · nearby · zone · **yell** · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** · look · **profile** · **whereis** · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/spells`** · **`/bag`** · **`/keys`** · **`/status`** |
-| **Meta** | AFK roster · soft reconnect · join welcome · mute list · swappable PNG art |
+| **Meta** | AFK roster · soft reconnect · **`/stuck` home** · session timer · mute list · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -139,8 +139,10 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/say message** · **/s message** | Nearby chat (same as **Y**) |
 | **/g message** · **/global message** | Global chat |
 | **/w Name message** | Whisper (private); also `/tell` — **unique name prefix OK** (e.g. `/w Uni hi`) |
-| **/z message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
+| **/z message** · **/yell message** · **/shout message** | Zone chat — everyone in the same zone type (town / field / dungeon) |
 | **channel `shout`** | Same as zone chat (area shout, not world-wide) |
+| **/stuck** · **/unstuck** · **/home** | Free return to town spawn if you’re lost (not during combat; nearby heroes may see a short system line) |
+| **/emote** · **/emotes** | List available emotes · **/emote wave** (etc.) to perform |
 | **/emote wave** · **/e wave** | Emote by name (also **E** cycles) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice roll (default d100) |
 | **/counts** · **/census** | Online + nearby + zone population totals |
@@ -151,7 +153,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/time** · **/uptime** | Server clock and how long the world has been up |
 | **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — also shows your zone and how many are online/nearby |
 | **/motd** · **/rules** | Message of the day |
-| **/afk** · **/away** · **/back** | Show AFK on the roster (clears when you chat, emote, or **walk**) |
+| **/afk** · **/away** · **/back** | Show AFK on the roster (others may see how long you’ve been AFK; clears when you chat, emote, or **walk**) |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
@@ -281,7 +283,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 339 passed
+# expect: 359 passed
 ```
 
 ---
@@ -295,11 +297,11 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.73** · **339** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.77** · **359** tests).
 
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/r` `/played` `/profile` `/mapinfo` `/hp` `/zone` `/who` …) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/r` `/stuck` `/yell` `/played` `/emote` `/zone` `/who` …) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

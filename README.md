@@ -6,13 +6,14 @@
 
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
-  <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub>
+  <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
+  <sub><b>v0.5.77</b> · <b>359</b> tests · humans ≠ agents</sub>
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.73-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.77-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-339_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-359_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -57,12 +58,15 @@ Fight server-side 1v1 battles · rest at the <b>inn</b> · cast <b>field magic</
   <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/hp_/xp_/buffs_/played-f97316?style=flat-square" />
+  <img alt="qol" src="https://img.shields.io/badge/QoL-/stuck_/yell_/emote_list-a855f7?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-359_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
-> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
+> **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.  
+> **Docs stay split:** humans → this page + [HUMAN](docs/HUMAN.md) · coding agents → **[AGENTS.md](AGENTS.md) only** (never a player guide).
 
 <table>
 <tr>
@@ -100,7 +104,7 @@ protocol · tests · reliability
 ```text
   Register  →  Create hero  →  Town (safe)  →  Field / Dungeon
       ↑              │                │              │
-      └──────── logout ◄── shop · inn · chat · whisper · AFK
+      └──── logout ◄── shop · inn · chat · /stuck home · AFK
 ```
 
 <p align="center">
@@ -119,7 +123,7 @@ protocol · tests · reliability
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.73** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.77** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -135,17 +139,15 @@ protocol · tests · reliability
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.73-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/339_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.77-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/359_tests_green-059669?style=for-the-badge" />
 </p>
 
-| | **v0.5.73** |
+| | **v0.5.77** |
 |:--|:--|
-| ⏱ | **`/played`** shows zone · online · nearby · AFK (this connection’s age) |
-| 🪪 | **`/whereis`** look alias · **`/mapinfo`** zone · **`/server`** · **`/info`** |
-| 💬 | **`/s`** nearby · **`/g`** global · mute list survives brief disconnects |
-| 🔄 | Live reconnect keeps your session timer; full rejoin starts a fresh one |
-| ✅ | **339** automated tests (new + regression) |
+| 🧪 | Hard adversarial pass — stuck, AFK duration, ignore whispers, ambiguous names |
+| 🔒 | No product bugs; probe false positives locked as permanent regression tests |
+| ✅ | **359** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -154,6 +156,10 @@ protocol · tests · reliability
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.76** | stuck rate fix · nearby return notice · `afk_for` on look/who |
+| **0.5.75** | `/stuck` · `/yell` · `/emote` list |
+| **0.5.74** | Adversarial lock-in · combat gates · AFK whisper · qty/move edges |
+| **0.5.73** | `/played` snapshot · `/whereis` · live reconnect timer · soft mute list |
 | **0.5.72** | `/played` · `/profile` · `/mapinfo` · `/server` · `/s` `/g` wiring |
 | **0.5.71** | Adversarial lock-in · combat move gate · first-join restored flags |
 | **0.5.70** | counts.you · find idle · soft restored flags |
@@ -202,10 +208,10 @@ protocol · tests · reliability
 
 | | |
 |:--|:--|
-| 💬 | Global · nearby · **zone** · whisper · **`/r`** · **`/last`** · emotes · **`/roll`** |
-| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/profile`** · **`/inspect`** |
+| 💬 | Global · nearby · **zone** · **`/yell`** · whisper · **`/r`** · emotes · **`/roll`** |
+| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/whereis`** · **`/profile`** |
 | 📊 | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/bag`** · **`/keys`** |
-| 🔄 | Soft reconnect · mute list · AFK · fast leave roster |
+| 🏠 | **`/stuck`** · **`/home`** free town return · soft reconnect · AFK |
 | 🦸 | Up to **3 heroes** · create / delete |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -219,7 +225,7 @@ protocol · tests · reliability
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **339** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **359** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -261,14 +267,14 @@ love client
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
 3. **Enter World** — spawn in **town** · welcome toast with online count
-4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/played`** · **`/w Name`**
+4. **R** inn · **I** bag (**D** discard) · **`/who`** · **`/stuck`** if lost · **`/w Name`**
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 339 passed
+# expect: 359 passed
 ```
 
 ---
@@ -287,7 +293,9 @@ python tests/run_tests.py
 | **/say** · **/s** | Nearby chat |
 | **/g** · **/global** | Global chat |
 | **/w Name msg** | Whisper (unique **prefix** OK) |
-| **/z msg** | Zone chat |
+| **/z msg** · **/yell msg** · **/shout msg** | Zone chat |
+| **/stuck** · **/unstuck** · **/home** | Free return to town (not in combat) |
+| **/emote** · **/emotes** | List emotes · **/emote wave** to perform |
 | **/r message** | Reply last whisper |
 | **/last** | Who `/r` will target |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice |
@@ -295,7 +303,8 @@ python tests/run_tests.py
 | **/find Name** · **/find zone:town** · **/find afk** | Search online (no map coords) |
 | **/who** · **/players** | Online + nearby + zones (**O**) |
 | **/near** · **/here** | Heroes in view |
-| **/zone** · **/where** · **/whereami** | Your area + who is here |
+| **/zone** · **/where** · **/whereami** · **/mapinfo** | Your area + who is here |
+| **/whereis Name** · **/profile Name** | Examine a hero (or yourself) |
 | **/status** · **/me** · **/whoami** · **/stats** · **F** | Status sheet |
 | **/hp** · **/vitals** | HP / MP peek |
 | **/xp** · **/level** | Level + XP to next |
@@ -377,7 +386,9 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/w Name message` | Whisper — full name or **unique prefix** |
 | `/r message` | Reply last whisper |
 | `/last` · `/lastwhisper` | See who `/r` targets |
-| `/say` · `/s` · `/g` · `/z` | Nearby · global · zone chat |
+| `/say` · `/s` · `/g` · `/z` · `/yell` · `/shout` | Nearby · global · zone chat |
+| `/stuck` · `/unstuck` · `/home` | Free return to town |
+| `/emote` · `/emotes` · `/emote wave` | List or perform emotes |
 | `/roll` · `/dice` · `/roll 20` | Nearby dice (default d100) |
 | `/counts` · `/census` | Online + zone population |
 | `/find Name` · `/find zone:field` · `/find afk` | Search (zone / AFK filters, no coords) |
@@ -480,9 +491,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-339_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-359_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.73-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.77-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -558,8 +569,8 @@ dq1_mmo/
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.73-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/339_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.77-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/359_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 

@@ -574,8 +574,13 @@ async def handle_message(
         # Soft AFK flag (no coords when far)
         try:
             from network.websocket_manager import _is_idle
+            import time as _time
 
             card["idle"] = _is_idle(tmeta)
+            if card["afk"]:
+                since = float(tmeta.get("afk_since") or 0.0)
+                if since > 0:
+                    card["afk_for"] = max(0, int(_time.monotonic() - since))
         except Exception:
             card["idle"] = False
         sid = tmeta.get("session_id")
@@ -790,8 +795,17 @@ async def handle_message(
         in_combat = combat_engine.is_in_combat(character_id)
         afk = bool(meta.get("afk")) if meta else False
         from network.websocket_manager import _is_idle as _idle_chk
+        import time as _time
 
         idle = _idle_chk(meta) if meta else False
+        afk_for = None
+        if afk and meta is not None:
+            try:
+                since = float(meta.get("afk_since") or 0.0)
+                if since > 0:
+                    afk_for = max(0, int(_time.monotonic() - since))
+            except (TypeError, ValueError):
+                afk_for = None
         bits: list[str] = []
         if repel > 0:
             bits.append(f"Repel {repel}")
@@ -800,23 +814,22 @@ async def handle_message(
         if in_combat:
             bits.append("In combat")
         if afk:
-            bits.append("AFK")
+            bits.append(f"AFK {afk_for}s" if afk_for is not None else "AFK")
         elif idle:
             bits.append("Idle")
-        outbound.append(
-            msg(
-                "buffs",
-                repel=repel,
-                radiant=radiant,
-                in_combat=in_combat,
-                afk=afk,
-                idle=idle,
-                session_id=manager.session_id(character_id),
-                message=(
-                    " · ".join(bits) if bits else "No active buffs."
-                ),
-            )
-        )
+        body = {
+            "type": "buffs",
+            "repel": repel,
+            "radiant": radiant,
+            "in_combat": in_combat,
+            "afk": afk,
+            "idle": idle,
+            "session_id": manager.session_id(character_id),
+            "message": (" · ".join(bits) if bits else "No active buffs."),
+        }
+        if afk_for is not None:
+            body["afk_for"] = afk_for
+        outbound.append(body)
         return character_id, user_id, outbound, None
 
     # --- Controls / keybinds summary (client HUD helper) ---
@@ -836,12 +849,12 @@ async def handle_message(
                 combat=["↑↓ menu · Enter", "1–9 jump", "A attack · F flee · H herb"],
                 inventory=["Enter use/equip", "S sell · D discard · U unequip · Tab shop"],
                 slash=[
-                    "/w /r /last · /say /g /z · /find · /who /near /zone",
-                    "/hp /xp /gold /spells /bag /buffs · /afk /quit",
+                    "/w /r /last · /say /g /z /yell · /find · /who /near /zone",
+                    "/hp /xp /gold /spells /bag /buffs /played · /stuck /afk /quit",
                 ],
                 message=(
                     "WASD · T/Y chat · E emote · F status · L look · "
-                    "R inn · I bag · H/M magic · O who · Esc"
+                    "R inn · I bag · H/M magic · O who · /stuck · Esc"
                 ),
             )
         )
@@ -866,7 +879,9 @@ async def handle_message(
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
+                    {"cmd": "emote", "hint": "E · /emote · /emote list — nearby emotes"},
+                    {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
+                    {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
                     {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
                     {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
@@ -1021,6 +1036,100 @@ async def handle_message(
         except Exception:
             pass
         return None, user_id, outbound, None
+
+    # --- Stuck / unstuck / home: free return to town spawn (multiplayer safety) ---
+    if msg_type in ("stuck", "unstuck", "home", "recall_home"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        if not meta:
+            outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
+            return character_id, user_id, outbound, None
+        try:
+            cx, cy = int(meta["x"]), int(meta["y"])
+        except Exception:
+            cx, cy = SPAWN_X, SPAWN_Y
+        already = cx == SPAWN_X and cy == SPAWN_Y and zone_at(cx, cy) == "town"
+        # Already home: no rate burn, no teleport
+        if already:
+            outbound.append(
+                msg(
+                    "stuck",
+                    ok=True,
+                    x=SPAWN_X,
+                    y=SPAWN_Y,
+                    zone="town",
+                    teleported=False,
+                    session_id=manager.session_id(character_id),
+                    message="You are already in town.",
+                )
+            )
+            return character_id, user_id, outbound, None
+        # Soft rate limit so stuck cannot be spammed as free teleport
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+        # allow_chat cleared AFK; ensure stamp is clean for peers
+        meta["afk"] = False
+        meta["afk_since"] = None
+        name = (meta.get("name") or "Hero")
+        char = await apply_character_patch(
+            character_id, {"world_x": SPAWN_X, "world_y": SPAWN_Y}
+        )
+        aoi = await manager.publish_move(character_id, SPAWN_X, SPAWN_Y, seq=None)
+        outbound.extend(aoi)
+        outbound.append(
+            msg(
+                ServerMessageType.MOVE_OK,
+                ok=True,
+                x=SPAWN_X,
+                y=SPAWN_Y,
+                seq=None,
+                reason="stuck",
+                zone="town",
+            )
+        )
+        # Nearby system notice — multiplayer awareness of free home recall
+        notice = msg(
+            ServerMessageType.CHAT,
+            player_id=character_id,
+            name="System",
+            text=f"{name} returned to town.",
+            channel="system",
+            system=True,
+        )
+        sid_s = manager.session_id(character_id)
+        if sid_s is not None:
+            notice["session_id"] = sid_s
+        await manager.broadcast_nearby(
+            character_id, notice, include_self=False, respect_ignore=False
+        )
+        await manager.publish_status(character_id, pulse_online=True)
+        outbound.append(
+            msg(
+                "stuck",
+                ok=True,
+                x=SPAWN_X,
+                y=SPAWN_Y,
+                zone="town",
+                teleported=True,
+                session_id=manager.session_id(character_id),
+                character=char,
+                message="You find your way back to town.",
+            )
+        )
+        return character_id, user_id, outbound, None
 
     # --- Server version / about (multiplayer ops + client HUD) ---
     if msg_type in ("version", "ver", "about", "server", "info"):
@@ -2072,7 +2181,7 @@ async def handle_message(
             await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
-    # --- Chat: global / nearby AOI / zone (`say`/`s` nearby; `chat`/`g` global) ---
+    # --- Chat: global / nearby AOI / zone (`say`/`s` nearby; `chat`/`g` global; yell/shout zone) ---
     if msg_type in (
         ClientMessageType.CHAT,
         ClientMessageType.SAY,
@@ -2081,6 +2190,8 @@ async def handle_message(
         "s",
         "g",
         "nearby_chat",
+        "yell",
+        "shout",
     ):
         text = sanitize_chat(data.get("text") or data.get("message") or data.get("msg"))
         if text is None:
@@ -2088,7 +2199,7 @@ async def handle_message(
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
-        # Explicit channel wins; say/s/nearby_chat → nearby; g → global; chat → global
+        # Explicit channel wins; say/s/nearby_chat → nearby; g → global; yell/shout → zone
         channel = (data.get("channel") or "").lower().strip()
         # Reserved for server-originated traffic only (level-up fanfare, etc.)
         # Check before rate-limit so clients get a clear reason, not chat_rate_limit.
@@ -2097,19 +2208,21 @@ async def handle_message(
                 msg(ServerMessageType.ERROR, reason="reserved channel")
             )
             return character_id, user_id, outbound, None
-        if channel not in ("global", "nearby", "local", "whisper", "zone", "area", "shout"):
+        if channel not in ("global", "nearby", "local", "whisper", "zone", "area", "shout", "yell"):
             if msg_type in (ClientMessageType.SAY, "say", "s", "nearby_chat"):
                 channel = "nearby"
             elif msg_type == "g":
                 channel = "global"
+            elif msg_type in ("yell", "shout"):
+                channel = "zone"
             else:
                 channel = "global"
         if channel == "local":
             channel = "nearby"
         if channel == "area":
             channel = "zone"
-        # Shout = same-zone broadcast (multiplayer area shout, not global spam)
-        if channel == "shout":
+        # Shout/yell = same-zone broadcast (multiplayer area shout, not global spam)
+        if channel in ("shout", "yell"):
             channel = "zone"
         # chat with channel=whisper and `to` name/id → private path
         # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
@@ -2314,21 +2427,7 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Emotes (nearby only) ---
-    if msg_type in (ClientMessageType.EMOTE, "emote"):
-        raw_emote = data.get("emote")
-        if raw_emote is None:
-            raw_emote = data.get("id")
-        if raw_emote is None:
-            raw_emote = data.get("action")
-        if raw_emote is None:
-            raw_emote = "wave"  # bare {type:emote} defaults to wave
-        if not isinstance(raw_emote, str):
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
-            return character_id, user_id, outbound, None
-        emote = raw_emote.strip().lower()[:24]
-        if not emote:
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
-            return character_id, user_id, outbound, None
+    if msg_type in (ClientMessageType.EMOTE, "emote", "emotes"):
         allowed = {
             "wave",
             "bow",
@@ -2340,6 +2439,41 @@ async def handle_message(
             "sit",
             "think",
         }
+        raw_emote = data.get("emote")
+        if raw_emote is None:
+            raw_emote = data.get("id")
+        if raw_emote is None:
+            raw_emote = data.get("action")
+        # Bare /emotes or /emote list → catalog (no rate burn)
+        want_list = (
+            msg_type == "emotes"
+            or data.get("list")
+            or (
+                isinstance(raw_emote, str)
+                and raw_emote.strip().lower() in ("list", "help", "?", "emotes")
+            )
+        )
+        if want_list:
+            if character_id is not None:
+                manager.touch(character_id)
+            elist = sorted(allowed)
+            outbound.append(
+                msg(
+                    "emotes",
+                    emotes=elist,
+                    message="Emotes: " + ", ".join(elist),
+                )
+            )
+            return character_id, user_id, outbound, None
+        if raw_emote is None:
+            raw_emote = "wave"  # bare {type:emote} defaults to wave
+        if not isinstance(raw_emote, str):
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
+            return character_id, user_id, outbound, None
+        emote = raw_emote.strip().lower()[:24]
+        if not emote:
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad emote"))
+            return character_id, user_id, outbound, None
         if emote not in allowed:
             outbound.append(msg(ServerMessageType.ERROR, reason="unknown emote"))
             return character_id, user_id, outbound, None
