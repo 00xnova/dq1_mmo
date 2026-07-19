@@ -35,17 +35,22 @@ async def _inventory_msg(character_id: int) -> dict:
 
 
 async def handle_disconnect(character_id: int) -> None:
-    """Persist and drop any in-flight battle when a client disconnects."""
+    """Persist position + any in-flight battle when a client disconnects."""
+    meta = manager.get_meta(character_id)
+    patch: dict = {}
+    if meta is not None:
+        patch["world_x"] = meta["x"]
+        patch["world_y"] = meta["y"]
+        manager.mark_clean(character_id)
+
     battle = combat_engine.get(character_id)
-    if battle is None:
-        return
-    # Soft-save HP/MP mid-fight; no rewards
-    patch = {
-        "current_hp": max(1, int(battle.hero["hp"])),
-        "current_mp": max(0, int(battle.hero["mp"])),
-    }
-    await apply_character_patch(character_id, patch)
-    combat_engine.end(character_id)
+    if battle is not None:
+        patch["current_hp"] = max(1, int(battle.hero["hp"]))
+        patch["current_mp"] = max(0, int(battle.hero["mp"]))
+        combat_engine.end(character_id)
+
+    if patch:
+        await apply_character_patch(character_id, patch)
 
 
 def _combat_update(battle, events: list | None = None) -> dict:
@@ -94,13 +99,40 @@ async def handle_message(
     connect_meta: dict | None = None
 
     if msg_type == ClientMessageType.PING:
-        # Lightweight presence refresh for clients returning from combat/menus
         if character_id is not None:
-            nearby = manager.nearby_players(character_id)
-            outbound.append(
-                msg(ServerMessageType.WORLD_STATE, players=nearby, enemies=[], map=map_payload())
+            manager.touch(character_id)
+        # Echo client timestamp for RTT; optional presence bundle
+        client_t = data.get("t")
+        outbound.append(msg(ServerMessageType.PONG, t=client_t))
+        if data.get("sync") or data.get("presence"):
+            if character_id is not None:
+                nearby = manager.nearby_players(character_id)
+                outbound.append(
+                    msg(
+                        ServerMessageType.WORLD_STATE,
+                        players=nearby,
+                        enemies=[],
+                        map=map_payload(),
+                    )
+                )
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.SYNC or msg_type == "sync":
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        meta = manager.get_meta(character_id)
+        nearby = manager.nearby_players(character_id)
+        outbound.append(
+            msg(
+                ServerMessageType.WORLD_STATE,
+                players=nearby,
+                enemies=[],
+                map=map_payload(),
+                you={"x": meta["x"], "y": meta["y"]} if meta else None,
             )
-        outbound.append(msg(ServerMessageType.PONG))
+        )
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.AUTH:
@@ -250,16 +282,41 @@ async def handle_message(
                 )
         return character_id, user_id, outbound, None
 
-    # --- Movement ---
+    # --- Movement (server-authoritative, ack'd, rate-limited, DB-deferred) ---
     if msg_type == ClientMessageType.MOVE:
+        seq = data.get("seq")
+        if isinstance(seq, float):
+            seq = int(seq)
+        if not isinstance(seq, int):
+            seq = None
+
+        def _reject(reason: str, mx: int, my: int) -> None:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason=reason,
+                    x=mx,
+                    y=my,
+                    seq=seq,
+                )
+            )
+            # Always ack so client can reconcile
+            outbound.append(msg(ServerMessageType.MOVE_OK, ok=False, x=mx, y=my, seq=seq, reason=reason))
+
         if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            meta = manager.get_meta(character_id)
+            mx = int(meta["x"]) if meta else 0
+            my = int(meta["y"]) if meta else 0
+            _reject("in combat", mx, my)
             return character_id, user_id, outbound, None
 
         x = data.get("x")
         y = data.get("y")
         if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
-            outbound.append(msg(ServerMessageType.ERROR, reason="invalid move"))
+            meta = manager.get_meta(character_id)
+            mx = int(meta["x"]) if meta else 0
+            my = int(meta["y"]) if meta else 0
+            _reject("invalid move", mx, my)
             return character_id, user_id, outbound, None
 
         tx, ty = int(x), int(y)
@@ -269,29 +326,63 @@ async def handle_message(
             return character_id, user_id, outbound, None
 
         fx, fy = int(meta["x"]), int(meta["y"])
+
+        # Duplicate / old seq: ignore but confirm current pos (idempotent)
+        last_seq = int(meta.get("last_move_seq") or 0)
+        if seq is not None and seq <= last_seq:
+            outbound.append(
+                msg(ServerMessageType.MOVE_OK, ok=True, x=fx, y=fy, seq=seq, duplicate=True)
+            )
+            return character_id, user_id, outbound, None
+
+        allowed, retry = manager.allow_move(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.MOVE_OK,
+                    ok=False,
+                    x=fx,
+                    y=fy,
+                    seq=seq,
+                    reason="rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
+
         if not is_adjacent_step(fx, fy, tx, ty):
-            outbound.append(msg(ServerMessageType.ERROR, reason="invalid step", x=fx, y=fy))
+            _reject("invalid step", fx, fy)
             return character_id, user_id, outbound, None
 
         if not is_walkable(tx, ty):
-            outbound.append(msg(ServerMessageType.ERROR, reason="blocked", x=fx, y=fy))
+            _reject("blocked", fx, fy)
             return character_id, user_id, outbound, None
 
-        async with db_write() as db:
-            await db.execute(
-                "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-                (tx, ty, character_id),
-            )
-            await db.commit()
-        manager.set_position(character_id, tx, ty)
+        # Apply in memory; background task flushes to SQLite
+        manager.set_position(character_id, tx, ty, seq=seq)
 
-        move_msg = msg(ServerMessageType.PLAYER_MOVED, player_id=character_id, x=tx, y=ty)
+        outbound.append(msg(ServerMessageType.MOVE_OK, ok=True, x=tx, y=ty, seq=seq))
+        move_msg = msg(
+            ServerMessageType.PLAYER_MOVED,
+            player_id=character_id,
+            x=tx,
+            y=ty,
+            seq=seq,
+        )
         await manager.broadcast_nearby(character_id, move_msg, include_self=False)
-        outbound.append(move_msg)
 
         # Random encounter
         enemy_id = roll_encounter(tx, ty, Rng())
         if enemy_id:
+            # Force position flush before combat so reconnect is consistent
+            async with db_write() as db:
+                await db.execute(
+                    "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                    (tx, ty, character_id),
+                )
+                await db.commit()
+            manager.mark_clean(character_id)
+
             char = await get_character(character_id)
             if char:
                 char["known_spells"] = battle_spells_at(int(char["level"]))

@@ -15,12 +15,14 @@ class ClientMessageType(StrEnum):
     SHOP = "shop"
     INVENTORY = "inventory"
     PING = "ping"
+    SYNC = "sync"  # request full presence snapshot
 
 
 class ServerMessageType(StrEnum):
     AUTH_OK = "auth_ok"
     AUTH_FAIL = "auth_fail"
     WORLD_STATE = "world_state"
+    MOVE_OK = "move_ok"  # authoritative ack for the mover
     PLAYER_MOVED = "player_moved"
     PLAYER_JOINED = "player_joined"
     PLAYER_LEFT = "player_left"

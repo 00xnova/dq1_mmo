@@ -1,4 +1,5 @@
 import json
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
@@ -9,14 +10,20 @@ from config import CORS_ORIGINS, HOST, PORT, VERSION
 from database.db import close_db, init_db
 from game.combat_engine import combat_engine
 from network.message_handler import handle_disconnect, handle_message
+from network.presence import start_presence_tasks, stop_presence_tasks
 from network.protocol import ServerMessageType, msg
 from network.websocket_manager import manager
+
+logging.basicConfig(level=logging.INFO)
+log = logging.getLogger("dq1")
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     await init_db()
+    start_presence_tasks()
     yield
+    await stop_presence_tasks()
     await close_db()
 
 
@@ -52,7 +59,6 @@ async def world_map():
 
 
 def _json_safe(obj):
-    """Ensure websocket payloads are JSON-serializable."""
     return json.loads(json.dumps(obj, default=str))
 
 
@@ -84,11 +90,19 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 continue
 
+            # Per-connection rate limit after auth
+            if character_id is not None and not manager.allow_message(character_id):
+                await websocket.send_text(
+                    json.dumps(msg(ServerMessageType.ERROR, reason="rate_limit"))
+                )
+                continue
+
             try:
                 character_id, user_id, outbound, connect_meta = await handle_message(
                     character_id, user_id, data
                 )
             except Exception as exc:
+                log.exception("handle_message failed")
                 await websocket.send_text(
                     json.dumps(msg(ServerMessageType.ERROR, reason=f"server error: {exc}"))
                 )
@@ -112,6 +126,10 @@ async def websocket_endpoint(websocket: WebSocket):
                             players=nearby,
                             enemies=[],
                             map=out.get("map"),
+                            you={
+                                "x": connect_meta["x"],
+                                "y": connect_meta["y"],
+                            },
                         )
                 await manager.broadcast_nearby(
                     connect_meta["character_id"],
@@ -127,12 +145,13 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
 
             for out in outbound:
-                await websocket.send_text(json.dumps(_json_safe(out)))
+                try:
+                    await websocket.send_text(json.dumps(_json_safe(out)))
+                except Exception:
+                    raise
     except WebSocketDisconnect:
         pass
     finally:
-        # Only tear down if this socket still owns the character slot.
-        # Prevents a replaced connection's finally from killing the new session.
         if character_id is not None and manager.owns(character_id, websocket):
             await handle_disconnect(character_id)
             left = await manager.disconnect(character_id, websocket)

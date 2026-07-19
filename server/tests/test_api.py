@@ -95,40 +95,60 @@ def test_full_flow(tmp_path, monkeypatch):
                 assert m2["type"] == "world_state"
                 assert "bonuses" in m1["character"]
 
+                async def recv_type(*types, timeout=3):
+                    while True:
+                        m = json.loads(await asyncio.wait_for(ws.recv(), timeout))
+                        if m.get("type") in types:
+                            return m
+
+                # move with seq ack
+                await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
+                mok = await recv_type("move_ok")
+                assert mok["ok"] is True and mok["seq"] == 1 and mok["x"] == 3
+
+                # duplicate seq is idempotent
+                await ws.send(json.dumps({"type": "move", "x": 3, "y": 2, "seq": 1}))
+                mok2 = await recv_type("move_ok")
+                assert mok2.get("duplicate") is True
+
                 # stay in town, buy club
                 await ws.send(json.dumps({"type": "buy", "item": "club"}))
-                inv = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                inv = await recv_type("inventory_update", "error")
                 if inv["type"] == "error":
-                    inv = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                    inv = await recv_type("inventory_update")
                 assert inv["type"] == "inventory_update"
                 assert any(i["item_id"] == "club" for i in inv["items"])
 
                 await ws.send(json.dumps({"type": "equip", "slot": "weapon", "item": "club"}))
-                inv2 = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                inv2 = await recv_type("inventory_update", "error")
                 if inv2["type"] == "error":
-                    inv2 = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                    inv2 = await recv_type("inventory_update")
                 assert inv2["character"]["equipment_weapon"] == "club"
                 assert inv2["character"]["bonuses"]["attack_power"] == 8
+
+                # heartbeat
+                await ws.send(json.dumps({"type": "ping", "t": 1.23}))
+                pong = await recv_type("pong")
+                assert pong.get("t") == 1.23
 
                 await ws.send(
                     json.dumps({"type": "debug_encounter", "enemy": "slime", "seed": 11})
                 )
-                start = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                start = await recv_type("combat_start")
                 assert start["type"] == "combat_start"
-                # drain update
-                await asyncio.wait_for(ws.recv(), 3)
+                await recv_type("combat_update")
 
                 for _ in range(15):
                     await ws.send(json.dumps({"type": "attack"}))
-                    m = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                    m = await recv_type("combat_update", "combat_end", "level_up")
                     while m["type"] == "level_up":
-                        m = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                        m = await recv_type("combat_update", "combat_end", "level_up")
                     if m["type"] == "combat_end":
                         assert m["result"] == "victory"
                         assert m["character"]["equipment_weapon"] == "club"
                         return
                     if m.get("outcome") == "victory":
-                        m = json.loads(await asyncio.wait_for(ws.recv(), 3))
+                        m = await recv_type("combat_end")
                         assert m["type"] == "combat_end"
                         return
                 raise AssertionError("battle did not end")

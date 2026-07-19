@@ -1,4 +1,4 @@
---- WebSocket client using vendored love2d-lua-websocket (flaribbit).
+--- Reliable WebSocket client: heartbeats, reconnect backoff, RTT, send queue.
 
 local Session = require("client.session")
 local Http = require("client.http")
@@ -10,17 +10,27 @@ local Network = {
   connected = false,
   authenticated = false,
   handlers = {},
+  rtt = 0,
   _status = "disconnected",
   _pending_auth = nil,
   _inbox = {},
+  _outbox = {},
   _url = nil,
   _character_id = nil,
   _reconnect_t = 0,
+  _reconnect_attempt = 0,
   _auto_reconnect = true,
+  _ping_t = 0,
+  _last_pong_t = 0,
+  _move_seq = 0,
 }
 
+local PING_INTERVAL = 5.0
+local PONG_TIMEOUT = 20.0
+local MAX_OUTBOX = 32
+local MAX_RECONNECT_DELAY = 15.0
+
 local function parse_ws_url(url)
-  -- ws://host:port/path
   local host, port, path = url:match("^ws://([^:/]+):?(%d*)(/.*)$")
   if not host then
     return nil
@@ -29,6 +39,10 @@ local function parse_ws_url(url)
     port = "80"
   end
   return host, tonumber(port), path or "/"
+end
+
+local function now()
+  return love.timer.getTime()
 end
 
 function Network.on(msg_type, fn)
@@ -45,6 +59,16 @@ function Network._dispatch(data)
   end
   if data.type == "auth_ok" then
     Network.authenticated = true
+    Network._reconnect_attempt = 0
+    Network._last_pong_t = now()
+  elseif data.type == "pong" then
+    Network._last_pong_t = now()
+    if data.t then
+      local rtt = now() - tonumber(data.t)
+      if rtt >= 0 and rtt < 10 then
+        Network.rtt = Network.rtt * 0.7 + rtt * 0.3
+      end
+    end
   end
   local fn = Network.handlers[data.type]
   if fn then
@@ -55,15 +79,34 @@ function Network._dispatch(data)
   end
 end
 
+function Network._flush_outbox()
+  if not Network.connected or not Network.ws then
+    return
+  end
+  while #Network._outbox > 0 do
+    local payload = table.remove(Network._outbox, 1)
+    local ok = pcall(function()
+      Network.ws:send(payload)
+    end)
+    if not ok then
+      table.insert(Network._outbox, 1, payload)
+      break
+    end
+  end
+end
+
 function Network.connect(url)
   url = url or Session.server_ws
   Network._url = url
   Network._auto_reconnect = true
+
   if Network.ws then
+    local keep = Network._auto_reconnect
     Network._auto_reconnect = false
     Network.disconnect()
-    Network._auto_reconnect = true
+    Network._auto_reconnect = keep
   end
+
   Network._status = "connecting"
   Network.authenticated = false
   Network.connected = false
@@ -85,10 +128,13 @@ function Network.connect(url)
   function client:onopen()
     Network.connected = true
     Network._status = "connected"
+    Network._last_pong_t = now()
+    Network._ping_t = 0
     if Network._pending_auth then
-      Network.send(Network._pending_auth)
+      Network._raw_send(Http.encode_json(Network._pending_auth))
       Network._pending_auth = nil
     end
+    Network._flush_outbox()
   end
 
   function client:onmessage(message)
@@ -103,17 +149,22 @@ function Network.connect(url)
     Network.connected = false
   end
 
-  function client:onclose(code, reason)
+  function client:onclose(_code, _reason)
     Network.connected = false
     Network.authenticated = false
-    Network._status = "closed"
     Network.ws = nil
     if Network._auto_reconnect then
-      Network._reconnect_t = 1.5
-      Network._status = "reconnecting"
+      Network._reconnect_attempt = Network._reconnect_attempt + 1
+      local delay = math.min(MAX_RECONNECT_DELAY, 1.0 * (2 ^ math.min(Network._reconnect_attempt - 1, 4)))
+      -- jitter
+      delay = delay * (0.75 + math.random() * 0.5)
+      Network._reconnect_t = delay
+      Network._status = string.format("reconnecting (%.1fs)", delay)
+    else
+      Network._status = "closed"
     end
     if Network.handlers._close then
-      Network.handlers._close(code, reason)
+      Network.handlers._close()
     end
   end
 
@@ -121,28 +172,61 @@ function Network.connect(url)
   return true
 end
 
+function Network._raw_send(payload)
+  if not Network.ws or not Network.connected then
+    if #Network._outbox < MAX_OUTBOX then
+      Network._outbox[#Network._outbox + 1] = payload
+    end
+    return false
+  end
+  local ok = pcall(function()
+    Network.ws:send(payload)
+  end)
+  if not ok then
+    if #Network._outbox < MAX_OUTBOX then
+      Network._outbox[#Network._outbox + 1] = payload
+    end
+    return false
+  end
+  return true
+end
+
 function Network.send(message)
+  if type(message) == "table" and message.type == "auth" then
+    if not Network.connected then
+      Network._pending_auth = message
+      return true
+    end
+  end
   local payload = message
   if type(message) == "table" then
     payload = Http.encode_json(message)
   end
   if not Network.ws then
-    return false
-  end
-  if not Network.connected then
-    -- queue auth until open
     if type(message) == "table" and message.type == "auth" then
       Network._pending_auth = message
       return true
     end
     return false
   end
-  Network.ws:send(payload)
-  return true
+  if not Network.connected then
+    if type(message) == "table" and message.type == "auth" then
+      Network._pending_auth = message
+      return true
+    end
+    -- queue non-auth only after we have been authenticated before
+    if Network._character_id and #Network._outbox < MAX_OUTBOX then
+      Network._outbox[#Network._outbox + 1] = payload
+      return true
+    end
+    return false
+  end
+  return Network._raw_send(payload)
 end
 
 function Network.auth(character_id)
   Network._character_id = character_id
+  Network._move_seq = 0
   return Network.send({
     type = "auth",
     token = Session.token,
@@ -150,9 +234,35 @@ function Network.auth(character_id)
   })
 end
 
+function Network.next_move_seq()
+  Network._move_seq = Network._move_seq + 1
+  return Network._move_seq
+end
+
+function Network.move(x, y)
+  local seq = Network.next_move_seq()
+  Network.send({ type = "move", x = x, y = y, seq = seq })
+  return seq
+end
+
+function Network.sync()
+  return Network.send({ type = "sync" })
+end
+
+function Network.ping(with_presence)
+  local payload = { type = "ping", t = now() }
+  if with_presence then
+    payload.sync = true
+  end
+  return Network.send(payload)
+end
+
 function Network.update(dt)
+  dt = dt or 0
+
+  -- reconnect
   if Network._reconnect_t and Network._reconnect_t > 0 and not Network.ws then
-    Network._reconnect_t = Network._reconnect_t - (dt or 0)
+    Network._reconnect_t = Network._reconnect_t - dt
     if Network._reconnect_t <= 0 then
       local ok = Network.connect(Network._url or Session.server_ws)
       if ok and Network._character_id and Session.token then
@@ -160,9 +270,32 @@ function Network.update(dt)
       end
     end
   end
+
   if Network.ws and Network.ws.update then
     Network.ws:update()
   end
+
+  -- heartbeat
+  if Network.connected and Network.authenticated then
+    Network._ping_t = (Network._ping_t or 0) + dt
+    if Network._ping_t >= PING_INTERVAL then
+      Network._ping_t = 0
+      Network.ping(false)
+    end
+    if Network._last_pong_t > 0 and (now() - Network._last_pong_t) > PONG_TIMEOUT then
+      Network._status = "stale — reconnecting"
+      if Network.ws and Network.ws.close then
+        pcall(function()
+          Network.ws:close()
+        end)
+      end
+      Network.ws = nil
+      Network.connected = false
+      Network.authenticated = false
+      Network._reconnect_t = 0.5
+    end
+  end
+
   if #Network._inbox > 0 then
     local batch = Network._inbox
     Network._inbox = {}
@@ -175,6 +308,8 @@ end
 function Network.disconnect()
   Network._auto_reconnect = false
   Network._reconnect_t = 0
+  Network._reconnect_attempt = 0
+  Network._outbox = {}
   if Network.ws and Network.ws.close then
     pcall(function()
       Network.ws:close()

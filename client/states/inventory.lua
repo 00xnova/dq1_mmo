@@ -69,6 +69,10 @@ function Inventory:keypressed(key)
       self.status = "Inventory"
       return
     end
+    -- persist character from inventory into session before world
+    if self.character then
+      Session.character = self.character
+    end
     State.switch("overworld")
     return
   elseif key == "up" then

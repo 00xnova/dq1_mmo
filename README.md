@@ -66,8 +66,18 @@ See `.env.example`. Production tips:
 - `ALLOW_DEBUG=0` to disable forced encounters
 - Point `DATABASE_URL` at a durable path
 
+## Networking reliability
+
+- **Server-authoritative moves** with `seq` + `move_ok` ack/reject
+- Client **prediction + reconciliation** (pending queue, snap on reject)
+- **Move rate limit** (~10 steps/sec) and global msg rate limit
+- **Deferred position DB writes** (flush every ~3s / combat / disconnect)
+- **Heartbeats** (`ping`/`pong` + RTT) and stale-connection reconnect with backoff
+- **Idle kick** (~90s), presence `sync`, remote player lerp
+- Reconnect-safe socket ownership (stale `finally` cannot wipe new session)
+
 ## Protocol (WebSocket JSON)
 
-**Client → server:** `auth`, `move`, `attack`, `flee`, `use_spell`, `equip`, `unequip`, `buy`, `sell`, `shop`, `inventory`, `ping`
+**Client → server:** `auth`, `move`(+`seq`), `attack`, `flee`, `use_spell`, `equip`, `unequip`, `buy`, `sell`, `shop`, `inventory`, `ping`, `sync`
 
-**Server → client:** `auth_ok`, `world_state`, `player_moved`, `combat_start`, `combat_update`, `combat_end`, `level_up`, `inventory_update`, `shop_list`, `error`, `pong`
+**Server → client:** `auth_ok`, `world_state`, `move_ok`, `player_moved`, `player_joined`, `player_left`, `combat_start`, `combat_update`, `combat_end`, `level_up`, `inventory_update`, `shop_list`, `error`, `pong`

@@ -9,7 +9,11 @@ local Overworld = {
   move_cooldown = 0,
   zone = "town",
   locked = false,
+  net_info = "",
 }
+
+local MOVE_COOLDOWN = 0.12
+local MAX_PENDING = 3
 
 local function zone_name(x, y)
   local row = World.map and World.map[y + 1]
@@ -31,6 +35,7 @@ end
 
 local function bind_handlers(self)
   Network.clear_handlers()
+
   Network.on("auth_ok", function(data)
     self.status = "Connected"
     self.locked = false
@@ -45,71 +50,109 @@ local function bind_handlers(self)
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
   end)
+
   Network.on("auth_fail", function(data)
     self.status = "Auth failed: " .. tostring(data.reason)
   end)
+
   Network.on("world_state", function(data)
     if data.map then
       World.set_map(data.map)
     end
     World.set_players(data.players)
-  end)
-  Network.on("player_moved", function(data)
-    World.update_player(data.player_id, data.x, data.y)
-    if World.local_player and data.player_id == World.local_player.id then
-      self.zone = zone_name(data.x, data.y)
+    if data.you and World.local_player then
+      -- authoritative snap when no pending predictions
+      if World.pending_count() == 0 then
+        World.local_player.x = math.floor(data.you.x)
+        World.local_player.y = math.floor(data.you.y)
+        World.server_x = World.local_player.x
+        World.server_y = World.local_player.y
+        self.zone = zone_name(World.local_player.x, World.local_player.y)
+      end
     end
   end)
+
+  Network.on("move_ok", function(data)
+    World.apply_move_ok(data)
+    if World.local_player then
+      self.zone = zone_name(World.local_player.x, World.local_player.y)
+    end
+    if data.ok == false and data.reason and data.reason ~= "rate_limit" then
+      if data.reason == "in combat" then
+        return
+      end
+      self.status = "Move: " .. tostring(data.reason)
+    end
+  end)
+
+  Network.on("player_moved", function(data)
+    World.update_player(data.player_id, data.x, data.y)
+  end)
+
   Network.on("player_joined", function(data)
     World.players[data.player_id] = {
       id = data.player_id,
       name = data.name or ("P" .. tostring(data.player_id)),
       x = math.floor(data.x or 0),
       y = math.floor(data.y or 0),
+      tx = math.floor(data.x or 0),
+      ty = math.floor(data.y or 0),
       level = data.level or 1,
     }
   end)
+
   Network.on("player_left", function(data)
     World.remove_player(data.player_id)
   end)
+
   Network.on("combat_start", function(data)
     self.locked = true
+    World.pending = {}
     State.switch("combat", data)
   end)
+
   Network.on("error", function(data)
     if data.reason == "blocked" or data.reason == "invalid step" then
-      if data.x and data.y and World.local_player then
-        World.local_player.x = data.x
-        World.local_player.y = data.y
+      if data.x and data.y then
+        World.apply_move_ok({ ok = false, x = data.x, y = data.y, seq = data.seq })
+        if World.local_player then
+          self.zone = zone_name(World.local_player.x, World.local_player.y)
+        end
       end
       return
     end
-    if data.reason == "in combat" then
+    if data.reason == "in combat" or data.reason == "rate_limit" then
       return
     end
     self.status = "Error: " .. tostring(data.reason)
   end)
-  Network.on("pong", function()
-    -- presence refresh accompanies pong via world_state
-  end)
+
+  Network.on("pong", function() end)
 end
 
 function Overworld:enter()
   self.locked = false
-  self.move_cooldown = 0.2
+  self.move_cooldown = 0.15
   bind_handlers(self)
 
-  -- Returning from combat/inventory: keep map, refresh local char position
   if Network.connected and Network.authenticated then
     if Session.character then
-      World.set_local(Session.character)
+      -- keep predicted pos if any; otherwise use session
+      if World.pending_count() == 0 and World.local_player == nil then
+        World.set_local(Session.character)
+      elseif World.local_player and Session.character then
+        World.local_player.name = Session.character.name
+        World.local_player.level = Session.character.level or World.local_player.level
+        World.local_player.id = Session.character.id
+      elseif Session.character and not World.local_player then
+        World.set_local(Session.character)
+      end
       if World.local_player then
         self.zone = zone_name(World.local_player.x, World.local_player.y)
       end
     end
     self.status = "Connected"
-    -- Ask server for nearby players again
-    Network.send({ type = "ping" })
+    Network.sync()
     return
   end
 
@@ -129,17 +172,32 @@ function Overworld:enter()
   end
 end
 
-function Overworld:leave()
-  -- keep socket alive across combat; only clear if quitting game from here
-end
+function Overworld:leave() end
 
 function Overworld:update(dt)
   Network.update(dt)
+  World.tick_remote(dt)
+
+  local rtt_ms = math.floor((Network.rtt or 0) * 1000)
+  self.net_info = string.format(
+    "%s  rtt %dms  pend %d",
+    Network.status(),
+    rtt_ms,
+    World.pending_count()
+  )
+
   if self.locked then
     return
   end
+  if not Network.connected or not Network.authenticated then
+    return
+  end
+
   self.move_cooldown = math.max(0, self.move_cooldown - dt)
   if self.move_cooldown > 0 or not World.local_player then
+    return
+  end
+  if World.pending_count() >= MAX_PENDING then
     return
   end
 
@@ -155,14 +213,15 @@ function Overworld:update(dt)
   end
 
   if dx ~= 0 or dy ~= 0 then
-    local nx = World.local_player.x + dx
-    local ny = World.local_player.y + dy
+    local base_x = World.local_player.x
+    local base_y = World.local_player.y
+    local nx = base_x + dx
+    local ny = base_y + dy
     if World.is_walkable(nx, ny) then
-      World.local_player.x = nx
-      World.local_player.y = ny
+      local seq = Network.move(nx, ny)
+      World.predict_move(seq, nx, ny)
       self.zone = zone_name(nx, ny)
-      Network.send({ type = "move", x = nx, y = ny })
-      self.move_cooldown = 0.14
+      self.move_cooldown = MOVE_COOLDOWN
     end
   end
 end
@@ -186,15 +245,14 @@ function Overworld:draw()
         "%s  Lv%d  (%d,%d)  [%s]  G %s",
         p.name,
         (c and c.level) or p.level or 1,
-        p.x,
-        p.y,
+        math.floor(p.x + 0.01),
+        math.floor(p.y + 0.01),
         self.zone,
         tostring(c and c.gold or "0")
       ),
       16,
       36
     )
-    -- HP bar
     love.graphics.setColor(0.2, 0.2, 0.25)
     love.graphics.rectangle("fill", 16, 58, 160, 12)
     love.graphics.setColor(0.8, 0.2, 0.25)
@@ -216,7 +274,14 @@ function Overworld:draw()
   end
   love.graphics.setColor(0.8, 0.85, 0.9)
   love.graphics.print(self.status .. "  |  nearby: " .. others, 16, 96)
-  love.graphics.print("WASD move  |  I inventory  |  field battles  |  B debug fight  |  Esc quit", 16, love.graphics.getHeight() - 28)
+  love.graphics.setColor(0.55, 0.65, 0.7)
+  love.graphics.print(self.net_info, 16, 116)
+  love.graphics.setColor(0.8, 0.85, 0.9)
+  love.graphics.print(
+    "WASD move  |  I inventory  |  field battles  |  B debug fight  |  Esc quit",
+    16,
+    love.graphics.getHeight() - 28
+  )
   love.graphics.setColor(1, 1, 1)
 end
 
