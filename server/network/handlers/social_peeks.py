@@ -76,6 +76,7 @@ async def handle(
         i_from_id, i_from_name = manager.last_invite_from(character_id)
         i_to_id, i_to_name = manager.last_invite_to(character_id)
         e_id, e_name = manager.last_emote_to(character_id)
+        ef_id, ef_name = manager.last_emote_from(character_id)
         s_id, s_name = manager.last_share_to(character_id)
         sf_id, sf_name = manager.last_share_from(character_id)
         whisper = social_peer_card(manager, w_id, w_name, viewer_id=character_id)
@@ -86,6 +87,9 @@ async def handle(
             manager, i_to_id, i_to_name, viewer_id=character_id
         )
         emote = social_peer_card(manager, e_id, e_name, viewer_id=character_id)
+        emote_from = social_peer_card(
+            manager, ef_id, ef_name, viewer_id=character_id
+        )
         share = social_peer_card(manager, s_id, s_name, viewer_id=character_id)
         share_from = social_peer_card(
             manager, sf_id, sf_name, viewer_id=character_id
@@ -103,6 +107,10 @@ async def handle(
             )
         if emote:
             bits.append(f"emote → {emote['name']}" + peer_status_suffix(emote))
+        if emote_from:
+            bits.append(
+                f"emote from {emote_from['name']}" + peer_status_suffix(emote_from)
+            )
         if share:
             bits.append(f"share → {share['name']}" + peer_status_suffix(share))
         if share_from:
@@ -116,6 +124,7 @@ async def handle(
                 invite_from=invite_from,
                 invite_to=invite_to,
                 emote=emote,
+                emote_from=emote_from,
                 share=share,
                 share_from=share_from,
                 has_any=bool(bits),
@@ -127,20 +136,37 @@ async def handle(
         return character_id, user_id, outbound, None
 
     if msg_type in LASTEMOTE_TYPES:
-        lid, lname = manager.last_emote_to(character_id)
-        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
-        online = bool(peer and peer.get("online"))
-        if peer:
-            le_msg = f"Last emote: {peer['name']}{peer_status_suffix(peer)}"
+        to_id, to_name = manager.last_emote_to(character_id)
+        from_id, from_name = manager.last_emote_from(character_id)
+        to_peer = social_peer_card(manager, to_id, to_name, viewer_id=character_id)
+        from_peer = social_peer_card(
+            manager, from_id, from_name, viewer_id=character_id
+        )
+        bits_le: list[str] = []
+        if to_peer:
+            bits_le.append(f"to {to_peer['name']}" + peer_status_suffix(to_peer))
+        if from_peer:
+            bits_le.append(
+                f"from {from_peer['name']}" + peer_status_suffix(from_peer)
+            )
+        if bits_le:
+            le_msg = "Last emote · " + " · ".join(bits_le)
         else:
             le_msg = "No directed emote target yet."
+        peer = to_peer or from_peer
+        online = bool(peer and peer.get("online"))
         outbound.append(
-            msg(
-                "lastemote",
-                peer=peer,
-                online=online,
-                message=le_msg,
-            )
+            {
+                "type": "lastemote",
+                "peer": peer,
+                "to": to_peer,
+                "from": from_peer,
+                "from_peer": from_peer,
+                "online": online,
+                "has_to": to_peer is not None,
+                "has_from": from_peer is not None,
+                "message": le_msg,
+            }
         )
         return character_id, user_id, outbound, None
 

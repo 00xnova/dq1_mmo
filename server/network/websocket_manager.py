@@ -208,6 +208,8 @@ class ConnectionManager:
         last_name = meta.get("last_whisper_from_name")
         last_emote_id = meta.get("last_emote_to_id")
         last_emote_name = meta.get("last_emote_to_name")
+        last_emote_from_id = meta.get("last_emote_from_id")
+        last_emote_from_name = meta.get("last_emote_from_name")
         last_share_id = meta.get("last_share_to_id")
         last_share_name = meta.get("last_share_to_name")
         last_share_from_id = meta.get("last_share_from_id")
@@ -222,6 +224,7 @@ class ConnectionManager:
             and not ignore
             and not last_from
             and not last_emote_id
+            and not last_emote_from_id
             and not last_share_id
             and not last_share_from_id
             and not last_invite_id
@@ -238,6 +241,8 @@ class ConnectionManager:
             "last_whisper_from_name": last_name,
             "last_emote_to_id": last_emote_id,
             "last_emote_to_name": last_emote_name,
+            "last_emote_from_id": last_emote_from_id,
+            "last_emote_from_name": last_emote_from_name,
             "last_share_to_id": last_share_id,
             "last_share_to_name": last_share_name,
             "last_share_from_id": last_share_from_id,
@@ -275,6 +280,8 @@ class ConnectionManager:
                 grace_whisper_name = old_meta.get("last_whisper_from_name")
                 grace_emote_id = old_meta.get("last_emote_to_id")
                 grace_emote_name = old_meta.get("last_emote_to_name")
+                grace_emote_from_id = old_meta.get("last_emote_from_id")
+                grace_emote_from_name = old_meta.get("last_emote_from_name")
                 grace_share_id = old_meta.get("last_share_to_id")
                 grace_share_name = old_meta.get("last_share_to_name")
                 grace_share_from_id = old_meta.get("last_share_from_id")
@@ -293,6 +300,8 @@ class ConnectionManager:
                 grace_whisper_name = bag.get("last_whisper_from_name")
                 grace_emote_id = bag.get("last_emote_to_id")
                 grace_emote_name = bag.get("last_emote_to_name")
+                grace_emote_from_id = bag.get("last_emote_from_id")
+                grace_emote_from_name = bag.get("last_emote_from_name")
                 grace_share_id = bag.get("last_share_to_id")
                 grace_share_name = bag.get("last_share_to_name")
                 grace_share_from_id = bag.get("last_share_from_id")
@@ -355,6 +364,8 @@ class ConnectionManager:
                 "last_whisper_from_name": grace_whisper_name,
                 "last_emote_to_id": grace_emote_id,
                 "last_emote_to_name": grace_emote_name,
+                "last_emote_from_id": grace_emote_from_id,
+                "last_emote_from_name": grace_emote_from_name,
                 "last_share_to_id": grace_share_id,
                 "last_share_to_name": grace_share_name,
                 "last_share_from_id": grace_share_from_id,
@@ -902,6 +913,29 @@ class ConnectionManager:
             return None, None
         lid = meta.get("last_emote_to_id")
         name = meta.get("last_emote_to_name")
+        try:
+            lid_i = int(lid) if lid is not None else None
+        except (TypeError, ValueError):
+            lid_i = None
+        return lid_i, str(name) if name else None
+
+    def note_emote_from(
+        self, listener_id: int, speaker_id: int, speaker_name: str | None = None
+    ) -> None:
+        """Remember who last directed an emote at you (soft reconnect)."""
+        meta = self._meta.get(listener_id)
+        if meta is None:
+            return
+        meta["last_emote_from_id"] = int(speaker_id)
+        if speaker_name:
+            meta["last_emote_from_name"] = str(speaker_name)[:24]
+
+    def last_emote_from(self, character_id: int) -> tuple[int | None, str | None]:
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return None, None
+        lid = meta.get("last_emote_from_id")
+        name = meta.get("last_emote_from_name")
         try:
             lid_i = int(lid) if lid is not None else None
         except (TypeError, ValueError):

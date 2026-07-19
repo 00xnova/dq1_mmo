@@ -3,7 +3,7 @@
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
   <img alt="version" src="https://img.shields.io/badge/version-0.5.119-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-608-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-610-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.119 · **608** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.119 · **610** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.119):** waves are **two-way** — **`/lastemote`** shows who you waved **at** and who waved **at you** · **`@emote`** / **`@emotedby`** · soft reconnect keeps emote partners · **608** tests.
+**Recent for players/ops (v0.5.119):** waves are **two-way** — **`/lastemote`** shows who you waved **at** and who waved **at you** · **`@emote`** / **`@emotedby`** · soft reconnect keeps emote partners · **610** tests.
 
 ---
 
@@ -311,7 +311,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 608 passed
+# expect: 610 passed
 ```
 
 ---
@@ -325,7 +325,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.119** · **608** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.119** · **610** tests).
 
 | Do | Don’t |
 |:---|:------|

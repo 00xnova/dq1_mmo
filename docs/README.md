@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.119** (2026-07-19) · suite **608** tests · two-way waves · `@emote` / `@emotedby` · soft reconnect emote partners
+**Last docs refresh:** **v0.5.119** (2026-07-19) · suite **610** tests · two-way waves · `@emote` / `@emotedby` · soft reconnect emote partners
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

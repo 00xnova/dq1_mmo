@@ -34,6 +34,9 @@ _PENDING_TOKENS = frozenset({"@pending", "@invite", "@meetup"})
 _SHARE_TOKENS = frozenset({"@share", "@lastshare"})
 # Who last shared location *with you* (recipient side only)
 _SHARE_FROM_TOKENS = frozenset({"@from", "@sharefrom", "@sharedby"})
+# Directed emote target / who emoted at you (@wave is reserved for emote perform)
+_EMOTE_TOKENS = frozenset({"@emote", "@lastemote"})
+_EMOTE_FROM_TOKENS = frozenset({"@emotedby", "@wavedby", "@waved"})
 
 
 def _format_uptime(seconds: int) -> str:
@@ -66,12 +69,14 @@ def _afk_snap(meta: dict[str, Any] | None) -> tuple[bool, str | None]:
 
 
 def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str | None:
-    """Return 'last' | 'pending' | 'share' | 'share_from' | None.
+    """Return social mode token or None.
 
     @last  — last whisper / emote / invite peer (command-specific chain)
     @pending / @invite — pending meetup peer (incoming then outgoing)
     @share / @lastshare — last location-share target (to, else from)
     @from / @sharefrom / @sharedby — who last shared location *with you*
+    @emote / @lastemote — last directed-emote target (to, else from)
+    @emotedby / @wavedby / @waved — who last directed an emote *at you*
     """
     if data:
         if data.get("pending") or data.get("invite_peer"):
@@ -80,6 +85,10 @@ def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str |
             return "share_from"
         if data.get("share_peer") or data.get("lastshare"):
             return "share"
+        if data.get("emote_from_peer") or data.get("emoted_by"):
+            return "emote_from"
+        if data.get("emote_peer") or data.get("lastemote"):
+            return "emote"
         if data.get("reply"):
             return "last"
     if not isinstance(target_name, str):
@@ -93,6 +102,10 @@ def _social_alias(target_name: Any, data: dict[str, Any] | None = None) -> str |
         return "share_from"
     if t in _SHARE_TOKENS:
         return "share"
+    if t in _EMOTE_FROM_TOKENS:
+        return "emote_from"
+    if t in _EMOTE_TOKENS:
+        return "emote"
     return None
 
 
@@ -103,7 +116,7 @@ def _resolve_social_peer(
     *,
     chain: tuple[str, ...] = ("whisper", "emote", "invite_from", "invite_to"),
 ) -> tuple[int | None, str | None, str | None]:
-    """Resolve @last / @pending / @share / @from peer. Returns (id, name, empty_reason)."""
+    """Resolve social alias peer. Returns (id, name, empty_reason)."""
     if mode == "pending":
         lid, lname = manager_obj.last_invite_from(character_id)
         if lid is None:
@@ -124,6 +137,18 @@ def _resolve_social_peer(
         if lid is None:
             return None, None, "no share target"
         return lid, lname, None
+    if mode == "emote_from":
+        lid, lname = manager_obj.last_emote_from(character_id)
+        if lid is None:
+            return None, None, "no one emoted at you"
+        return lid, lname, None
+    if mode == "emote":
+        lid, lname = manager_obj.last_emote_to(character_id)
+        if lid is None:
+            lid, lname = manager_obj.last_emote_from(character_id)
+        if lid is None:
+            return None, None, "no emote target"
+        return lid, lname, None
     # mode == last
     for step in chain:
         if step == "whisper":
@@ -138,6 +163,8 @@ def _resolve_social_peer(
             lid, lname = manager_obj.last_share_to(character_id)
         elif step == "share_from":
             lid, lname = manager_obj.last_share_from(character_id)
+        elif step == "emote_from":
+            lid, lname = manager_obj.last_emote_from(character_id)
         else:
             continue
         if lid is not None:

@@ -92,6 +92,14 @@ async def handle_sync(
     last_share_from = social_peer_card(
         manager, sf_id, sf_name, viewer_id=character_id
     )
+    et_id, et_name = manager.last_emote_to(character_id)
+    ef_id, ef_name = manager.last_emote_from(character_id)
+    last_emote_to = social_peer_card(
+        manager, et_id, et_name, viewer_id=character_id
+    )
+    last_emote_from = social_peer_card(
+        manager, ef_id, ef_name, viewer_id=character_id
+    )
     you_blob = None
     if meta is not None:
         you_blob = {
@@ -129,6 +137,8 @@ async def handle_sync(
             last_whisper=last_whisper,
             last_share_to=last_share_to,
             last_share_from=last_share_from,
+            last_emote_to=last_emote_to,
+            last_emote_from=last_emote_from,
         )
     )
     return character_id, user_id, outbound, None

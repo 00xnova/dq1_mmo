@@ -166,7 +166,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to look at",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to look at",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -537,7 +537,7 @@ async def handle_message(
                 commands=[
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
-                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @share · /w @from · /w @pending message"},
+                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @emote · /w @share · /w @from · /w @pending"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · zone:town · afk:yes · combat:yes · idle:yes"},
                     {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
@@ -546,8 +546,8 @@ async def handle_message(
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @pending — emote shortcuts"},
-                    {"cmd": "lastemote", "hint": "/lastemote — last directed emote target"},
+                    {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @emote · /wave @emotedby"},
+                    {"cmd": "lastemote", "hint": "/lastemote — last emote to + from (near/far)"},
                     {"cmd": "lastshare", "hint": "/lastshare — last share to + from (near/far)"},
                     {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
                     {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @share · /invite @pending"},
@@ -1006,7 +1006,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to share with",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to share with",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1149,7 +1149,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to poke",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to poke",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1277,7 +1277,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to ask",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to ask",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1396,7 +1396,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to thank",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to thank",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1845,7 +1845,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to ignore",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to ignore",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -1895,7 +1895,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to unignore",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to unignore",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -2117,7 +2117,7 @@ async def handle_message(
                     msg(
                         ServerMessageType.ERROR,
                         reason=empty
-                        if social_q in ("pending", "share", "share_from")
+                        if social_q in ("pending", "share", "share_from", "emote", "emote_from")
                         else "no one to find",
                     )
                 )
@@ -2165,7 +2165,7 @@ async def handle_message(
                 hits = [card]
             q_clean = (
                 "@pending"
-                if social_q in ("pending", "share", "share_from")
+                if social_q in ("pending", "share", "share_from", "emote", "emote_from")
                 else ("@last" if social_q == "last" else f"@{social_q}")
             )
         else:
@@ -2935,12 +2935,13 @@ async def handle_message(
                 manager, character_id, social_mode, chain=chain
             )
             if lid is None:
-                if social_mode in ("share", "share_from"):
-                    reason = empty or (
-                        "no share from anyone"
-                        if social_mode == "share_from"
-                        else "no share target"
-                    )
+                if social_mode in ("share", "share_from", "emote", "emote_from"):
+                    reason = empty or {
+                        "share": "no share target",
+                        "share_from": "no share from anyone",
+                        "emote": "no emote target",
+                        "emote_from": "no one emoted at you",
+                    }.get(social_mode, "no one")
                 elif is_reply_cmd or social_mode == "last":
                     reason = "no one to reply to"
                 else:
@@ -3448,7 +3449,7 @@ async def handle_message(
                 outbound.append(
                     msg(
                         ServerMessageType.ERROR,
-                        reason=empty if social_mode in ("pending", "share", "share_from") else "no one to emote",
+                        reason=empty if social_mode in ("pending", "share", "share_from", "emote", "emote_from") else "no one to emote",
                     )
                 )
                 return character_id, user_id, outbound, None
@@ -3560,9 +3561,10 @@ async def handle_message(
                     outbound=outbound,
                 ):
                     return character_id, user_id, outbound, None
-        # Track last directed target for /wave @last (soft-grace)
+        # Track last directed target + recipient memory (soft-grace)
         if target_id is not None and tname:
             manager.note_emote_to(character_id, target_id, tname)
+            manager.note_emote_from(target_id, character_id, name)
         # Self echo may note AFK so UI can show they may not notice
         if target_id is not None:
             tmeta_e = manager.get_meta(target_id)
