@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.112` (`server/config.py` → `VERSION`) · **564** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.113` (`server/config.py` → `VERSION`) · **570** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.112** / **564** until the suite or `VERSION` changes.  
-Last **pushed** ship: `7b2b714` (v0.5.112).  
+Keep badges at **0.5.113** / **570** until the suite or `VERSION` changes.  
+Last **pushed** ship: `a264e7c` (docs) / `7b2b714` (v0.5.112). Local ship **0.5.113**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.112 / 564** · README GitHub polish (mermaid · skillicons · previews) · **humans ≠ agents** · protocol / reliability / test matrix **only** in this file.
+Docs pass (**this run**): badges **0.5.113 / 570** · far emote delivery · lastwhisper near/far · protocol / reliability / test matrix **only** in this file.
 
 ## Documentation map (do not mix)
 
@@ -450,6 +450,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 242. **`social_peer_card` / `peer_status_suffix`:** shared peer cards for pending/lastinvite/lastemote/social; optional **`nearby`** (AOI) vs viewer without coords; badges include `near`|`far`.
 243. **Whisper** (dedicated + channel=whisper) uses **`private_social_delivery`** (refund_chat + restore_afk).
 244. Tests: `test_features_v05112` + `test_mp_reliability_v05112`.
+245. **Directed far emote** (`/wave` outside AOI): uses **`private_social_delivery`**; fail → refund_chat + restore_afk; does **not** `note_emote_to`.
+246. Directed emote self-echo may set **`target_afk`** / **`target_afk_message`**.
+247. **`lastwhisper`/`last`:** `social_peer_card` + near/far badges (no coords).
+248. Tests: `test_features_v05113` + `test_mp_reliability_v05113`.
 
 ## Tests (mandatory for your changes)
 

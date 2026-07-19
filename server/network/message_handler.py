@@ -1034,37 +1034,18 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         lid, lname = manager.last_whisper_from(character_id)
-        peer = None
-        online = False
-        peer_afk = False
-        if lid is not None:
-            online = manager.is_online(lid)
-            pmeta = manager.get_meta(lid) if online else None
-            peer_afk = bool(pmeta.get("afk")) if pmeta else False
-            peer = {
-                "id": lid,
-                "name": lname or (pmeta or {}).get("name"),
-                "online": online,
-                "afk": peer_afk,
-            }
-            psid = (pmeta or {}).get("session_id") if pmeta else None
-            if psid is not None:
-                peer["session_id"] = psid
-            if peer_afk and pmeta is not None:
-                pam = pmeta.get("afk_message")
-                if isinstance(pam, str) and pam.strip():
-                    peer["afk_message"] = pam.strip()[:48]
+        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
+        online = bool(peer and peer.get("online"))
+        if peer:
+            lw_msg = f"Last whisper: {peer['name']}{peer_status_suffix(peer)}"
+        else:
+            lw_msg = "No one to reply to yet."
         outbound.append(
             msg(
                 "lastwhisper",
                 peer=peer,
                 online=online,
-                message=(
-                    f"Last whisper: {peer['name']}"
-                    + (" (online)" if online else " (offline)" if peer else "")
-                    if peer
-                    else "No one to reply to yet."
-                ),
+                message=lw_msg,
             )
         )
         return character_id, user_id, outbound, None
@@ -3985,6 +3966,8 @@ async def handle_message(
         from network.websocket_manager import _is_idle as _idle_chk
 
         was_idle = _idle_chk(meta) if meta else False
+        # Snap AFK before allow_chat so far directed delivery can restore on fail
+        was_afk, afk_msg_snap = _afk_snap(meta)
         # Soft rate limit via chat timer (social spam)
         ok_chat, retry = manager.allow_chat(character_id)
         if not ok_chat:
@@ -4040,13 +4023,29 @@ async def handle_message(
         await manager.broadcast_nearby(
             character_id, emote_msg, include_self=False, respect_ignore=True
         )
-        # Directed: ensure target sees it even if outside AOI (never bypass ignore)
+        # Directed far: private delivery must succeed or refund chat (not a silent lie)
         if target_id is not None and target_id not in set(manager.ids_nearby(character_id)):
             if not manager.is_ignored_by(target_id, character_id):
-                await manager.send(target_id, emote_msg)
+                if not await private_social_delivery(
+                    character_id,
+                    target_id,
+                    emote_msg,
+                    was_afk=was_afk,
+                    afk_message=afk_msg_snap,
+                    outbound=outbound,
+                ):
+                    return character_id, user_id, outbound, None
         # Track last directed target for /wave @last (soft-grace)
         if target_id is not None and tname:
             manager.note_emote_to(character_id, target_id, tname)
+        # Self echo may note AFK so UI can show they may not notice
+        if target_id is not None:
+            tmeta_e = manager.get_meta(target_id)
+            if tmeta_e and tmeta_e.get("afk"):
+                emote_msg["target_afk"] = True
+                am_e = tmeta_e.get("afk_message")
+                if isinstance(am_e, str) and am_e.strip():
+                    emote_msg["target_afk_message"] = am_e.strip()[:48]
         outbound.append(emote_msg)
         if was_idle:
             await manager.publish_status(character_id)

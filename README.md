@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.112</b> · <b>564</b> tests green · meetup · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.113</b> · <b>570</b> tests green · meetup · near/far · shop · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -27,9 +27,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.112-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.113-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-564_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-570_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -83,7 +83,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-564_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-570_green-059669?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -164,7 +164,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.112** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.113** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -181,8 +181,8 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.112-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/564_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.113-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/570_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -191,13 +191,13 @@ flowchart LR
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.112** — social near/far · whisper delivery · **564** tests |
+| | **v0.5.113** — reliable far waves · `/last` near/far · **570** tests |
 |:--|:--|
-| 📍 | **`/pending` · `/lastinvite` · `/lastemote` · `/social`** show if peers are **near or far** |
-| 💬 | Whispers stay reliable if someone drops mid-message (you can try again immediately) |
-| 🗺️ | Still no map-radar coords on social lists — zone + near/far only |
-| 🤝 | Meetup accept zone + privacy still green |
-| ✅ | **564** automated tests green |
+| 👋 | **`/wave Name`** across the map stays honest — if they drop mid-wave, you can try again |
+| 💬 | **`/last`** (last whisper peer) shows **near/far** like meetup lists |
+| ☕ | Directed emotes tip when the target is AFK |
+| 📍 | Social near/far peeks (v0.5.112) still green |
+| ✅ | **570** automated tests green |
 
 > [!TIP]
 > **Meetup loop:** **`/invite Hero`** · **`/askwhere Hero`** · **`/share Hero`** · **`/thank @last`** · **`/poke Hero`** · they **`/accept`** · **`/r`** · **`/cancel`** if plans change.  
@@ -215,6 +215,7 @@ flowchart LR
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.113** | Far directed emote reliability · `/last` near/far · **570** tests |
 | **0.5.112** | Social near/far · reliable whispers · **564** tests |
 | **0.5.111** | Accept/decline zone · `r` reply alias · lastemote badges · **556** tests |
 | **0.5.110** | Find multi-token filters (no residual prefix) · **547** tests |
@@ -328,7 +329,7 @@ flowchart LR
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **564** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **570** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -426,7 +427,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 564 passed
+# expect: 570 passed
 ```
 
 ---
@@ -693,9 +694,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-564_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-570_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.112-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.113-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -773,8 +774,8 @@ flowchart LR
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.112-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/564_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.113-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/570_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
