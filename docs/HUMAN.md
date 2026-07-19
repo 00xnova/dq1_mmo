@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.130-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-673-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.131-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-678-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.130 · **673** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.131 · **678** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.130):** **`/ignore`** and **`/unignore`** confirm with a plain line · **`/ignores`** notes near/far and zone when online · soft reconnect still restores your mute list · **673** tests.
+**Recent for players/ops (v0.5.131):** **`/help`**, **`/keys`**, and **`/motd`** mention how many heroes are online (and AFK) · mute list still shows near/far/zone · **678** tests.
 
 > [!TIP]
 > **Mute without drama:** **`/ignore Hero`** · check **`/ignores`** (near · far · zone) · **`/unignore Hero`** when you’re ready. After a brief disconnect, the list comes back.
@@ -178,7 +178,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/version** · **/about** · **/server** · **/info** | Server version + online census + plain summary (nearby when you’re logged in) |
 | **/time** · **/uptime** | Server clock / uptime + online census · plain summary |
 | **/played** · **/session** | How long **this connection** has been open (not lifetime playtime) — survives a brief disconnect · zone · fighting · nearby when useful |
-| **/motd** · **/rules** | Message of the day |
+| **/motd** · **/rules** | Message of the day + online census |
 | **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully |
@@ -188,7 +188,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/find afk** · **/find afk:yes** | List heroes marked AFK (combine with `zone:…`) |
 | **/find combat:yes** · **/find fighting** | List heroes currently in combat (no map positions) |
 | **/find idle** · **/find idle:yes** | List idle heroes (AFK or soft timeout) |
-| **/help** or **?** | Server list of commands / keys |
+| **/help** or **?** | Server list of commands / keys + online / AFK summary |
 | **/ignore Name** | Mute chat/emotes from that hero — plain confirmation |
 | **/unignore Name** | Stop ignoring — plain confirmation |
 | **/ignores** · **/blocklist** | List who you are ignoring (online near/far · zone · names stay if they log off) |
@@ -202,7 +202,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/hp** · **/vitals** · **/mp** | Quick HP / MP check (zone · fighting · nearby) |
 | **/xp** · **/level** · **/exp** | Level and XP toward the next level (zone · nearby) |
 | **/buffs** · **/effects** | Repel, radiant, AFK flags (zone when empty; nearby when active) |
-| **/keys** · **/controls** | Keybind summary |
+| **/keys** · **/controls** | Keybind summary + online census |
 | **/spells** · **/magic** | Known battle + field spells (zone) |
 | **/bag** · **/inv** · **/items** | Open bag (same as **I**) |
 | **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
@@ -326,7 +326,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 673 passed
+# expect: 678 passed
 ```
 
 ---
@@ -340,7 +340,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.130** · **673** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.131** · **678** tests).
 
 | Do | Don’t |
 |:---|:------|

@@ -35,6 +35,7 @@ from game.world_manager import (
     map_payload,
     zone_at,
 )
+from network.handlers import hud_info as hud_info_handlers
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
 from network.handlers import mute as mute_handlers
@@ -163,128 +164,13 @@ async def handle_message(
     if mute_peek is not None:
         return mute_peek
 
-    # who/near · look · status · gold · version/played · mute via handlers
+    hud_peek = await hud_info_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if hud_peek is not None:
+        return hud_peek
 
-    # --- Controls / keybinds summary (client HUD helper) ---
-    if msg_type in ("keys", "controls", "keybinds", "keymap"):
-        if character_id is not None:
-            manager.touch(character_id)
-        outbound.append(
-            msg(
-                "controls",
-                overworld=[
-                    "WASD move",
-                    "T global chat · Y nearby",
-                    "E emote · F status · L look · O who",
-                    "I bag · R inn · H/M field magic · K spells",
-                    "Esc disconnect",
-                ],
-                combat=["↑↓ menu · Enter", "1–9 jump", "A attack · F flee · H herb"],
-                inventory=["Enter use/equip", "S sell · D discard · U unequip · Tab shop"],
-                slash=[
-                    "/w /r /last · /say /g /z /yell · /find · /who /near /zone",
-                    "/hp /xp /gold /spells /bag /buffs /played · /stuck /afk /quit",
-                ],
-                message=(
-                    "WASD · T/Y chat · E emote · F status · L look · "
-                    "R inn · I bag · H/M magic · O who · /stuck · Esc"
-                ),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- Help (slash/key command list for clients) ---
-    if msg_type in (ClientMessageType.HELP, "help", "commands"):
-        if character_id is not None:
-            manager.touch(character_id)
-        outbound.append(
-            msg(
-                ServerMessageType.HELP,
-                commands=[
-                    {"cmd": "move", "hint": "WASD / arrow keys"},
-                    {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
-                    {"cmd": "whisper", "hint": "/w Name · /w @last · /w @emote · /w @share · /w @from · /w @pending"},
-                    {"cmd": "say", "hint": "/say · /s message — nearby chat"},
-                    {"cmd": "find", "hint": "/find Name · zone:town · afk:yes · combat:yes · idle:yes"},
-                    {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
-                    {"cmd": "look", "hint": "L · /look · /look @pending · /whereis @last"},
-                    {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
-                    {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
-                    {"cmd": "zone", "hint": "/zone · /where · /mapinfo · /coords"},
-                    {"cmd": "counts", "hint": "/counts · /census — online + you + zones"},
-                    {"cmd": "emote", "hint": "E · /wave · /wave @last · /wave @emote · /wave @emotedby"},
-                    {"cmd": "lastemote", "hint": "/lastemote — last emote to + from (near/far)"},
-                    {"cmd": "lastshare", "hint": "/lastshare — last share to + from (near/far)"},
-                    {"cmd": "busy", "hint": "/busy [reason] — AFK alias"},
-                    {"cmd": "invite", "hint": "/invite Name · /meet @last · /invite @share · /invite @pending"},
-                    {"cmd": "cancel", "hint": "/cancel · /uninvite — cancel your last invite"},
-                    {"cmd": "accept", "hint": "/accept · /coming — reply to last invite"},
-                    {"cmd": "decline", "hint": "/decline · /later — decline last invite"},
-                    {"cmd": "lastinvite", "hint": "/lastinvite — who invited you last"},
-                    {"cmd": "pending", "hint": "/pending · /invites — pending meetup in + out"},
-                    {"cmd": "share", "hint": "/share Name · /share @pending · /share @last — share zone + coords"},
-                    {"cmd": "poke", "hint": "/poke Name · /nudge @last · /poke @pending"},
-                    {"cmd": "askwhere", "hint": "/askwhere Name · /locate @pending"},
-                    {"cmd": "thank", "hint": "/thank Name · /ty @last · /ty @share · /ty @from · /ty @pending"},
-                    {"cmd": "fighting", "hint": "/fighting · /combats — nearby heroes in combat"},
-                    {"cmd": "yell", "hint": "/yell · /shout · /z — zone chat"},
-                    {"cmd": "stuck", "hint": "/stuck · /unstuck · /home — return to town"},
-                    {"cmd": "use", "hint": "/use herb — use consumable from bag"},
-                    {"cmd": "buy", "hint": "/buy copper sword [qty] — names or ids OK"},
-                    {"cmd": "sell", "hint": "/sell herb [qty] — names or ids OK"},
-                    {"cmd": "equip", "hint": "/equip copper sword — name/id, slot auto"},
-                    {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
-                    {"cmd": "inventory", "hint": "I · /bag · /inv — bag (12 stacks · max 8)"},
-                    {"cmd": "gold", "hint": "/gold · /money — wallet peek"},
-                    {"cmd": "hp", "hint": "/hp · /vitals — HP/MP peek"},
-                    {"cmd": "xp", "hint": "/xp · /level — level + XP to next"},
-                    {"cmd": "buffs", "hint": "/buffs · /effects — repel · radiant · AFK"},
-                    {"cmd": "played", "hint": "/played · /session — this connection length"},
-                    {"cmd": "keys", "hint": "/keys · /controls — keybind summary"},
-                    {"cmd": "spells", "hint": "/spells · /magic — known battle + field"},
-                    {"cmd": "unequip", "hint": "/unequip weapon|armor|shield|helmet"},
-                    {"cmd": "discard", "hint": "/discard herb [qty] · D in bag — free a slot"},
-                    {"cmd": "cast", "hint": "/cast heal · /repel · /return · H/M keys"},
-                    {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
-                    {"cmd": "ignore", "hint": "/ignore · /ignore @pending · /unignore @last"},
-                    {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
-                    {"cmd": "lastwhisper", "hint": "/last · /lastwhisper — who /r targets"},
-                    {"cmd": "social", "hint": "/social · /peers — whisper · invite · emote peers"},
-                    {"cmd": "find", "hint": "/find Name · /find @pending · /find @share · zone:town"},
-                    {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
-                    {"cmd": "version", "hint": "/version · /server · /info — server version"},
-                    {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
-                    {"cmd": "motd", "hint": "/motd — message of the day"},
-                    {"cmd": "afk", "hint": "/afk [reason] · /away · /back — AFK badge + status"},
-                    {"cmd": "block", "hint": "/block · /unblock — same as ignore"},
-                    {"cmd": "quit", "hint": "/quit · /logout — leave the world"},
-                ],
-                channels=["global", "nearby", "zone", "whisper"],
-                version=__import__("config", fromlist=["VERSION"]).VERSION,
-                online=len(manager.online_ids()),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- MOTD (multiplayer welcome blurb) ---
-    if msg_type in ("motd", "message_of_the_day", "rules"):
-        from config import MOTD, PROCESS_STARTED_AT, VERSION as _VER
-        import time as _time
-
-        if character_id is not None:
-            manager.touch(character_id)
-        outbound.append(
-            msg(
-                "motd",
-                text=str(MOTD)[:500],
-                version=_VER,
-                online=len(manager.online_ids()),
-                afk_count=manager.afk_count(),
-                zones=manager.zone_counts(),
-                uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
-            )
-        )
-        return character_id, user_id, outbound, None
+    # who/near · look · status · gold · version/played · mute · keys/help/motd via handlers
 
     # --- Manual AFK / away / busy / back (+ optional status message) ---
     if msg_type in ("afk", "away", "busy", "back"):

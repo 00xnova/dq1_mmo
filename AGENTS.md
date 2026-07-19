@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.130` (`server/config.py` → `VERSION`) · **673** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.131` (`server/config.py` → `VERSION`) · **678** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.130** / **673** until the suite or `VERSION` changes.  
-Last **pushed** ship: `16db6ea` (v0.5.130).
+Keep badges at **0.5.131** / **678** until the suite or `VERSION` changes.  
+Last **pushed** ship: `16db6ea` / `67050ed` (v0.5.130). Shipping **0.5.131**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.130 / 673** · README mute polish · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.131 / 678** · hud_info extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -95,6 +95,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/self_peeks.py` | gold/vitals/xp/spells/buffs (zone · combat · nearby) |
 | `server/network/handlers/meta_peeks.py` | version/played/time (census · plain message) |
 | `server/network/handlers/mute.py` | ignore/unignore/ignores (near/far · zone · plain) |
+| `server/network/handlers/hud_info.py` | keys/help/motd (census · plain message) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -526,6 +527,15 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 307. Played includes **in_combat**, **combat_count**, **nearby_combat**; message may append zone · fighting · nearby.
 308. Time includes **afk_count**, **combat_count**, **zones**, plain **message**; authed nearby/session/zone.
 309. Tests: `test_features_v05129` + `test_mp_reliability_v05129`.
+310. **`handlers/mute.py`:** ignore/mute/block · unignore · ignores/blocklist extracted from message_handler.
+311. Ignore/unignore acks include plain **message**; player card may carry nearby/zone/afk/in_combat.
+312. **`ignore_list`:** online entries copy **zone** · **afk** · **in_combat** from social_peer_card (no coords).
+313. Ignores list includes **nearby_count** + richer plain message (zone/fight/afk bits).
+314. Tests: `test_features_v05130` + `test_mp_reliability_v05130`.
+315. **`handlers/hud_info.py`:** keys/controls · help/commands · motd extracted from message_handler.
+316. Keys/help/motd include **online**, **afk_count**, **combat_count**, **zones**, plain **message**.
+317. Authed peeks may include **nearby_count** + **session_id**; help ignore hint mentions near/far/zone.
+318. Tests: `test_features_v05131` + `test_mp_reliability_v05131`.
 
 ## Tests (mandatory for your changes)
 
@@ -642,6 +652,8 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v05129` | meta_peeks extract · version/played/time census units |
 | `tests.test_features_v05130` | mute WS ignore/unignore/list messages |
 | `tests.test_mp_reliability_v05130` | mute extract · ignore_list zone · nearby_count |
+| `tests.test_features_v05131` | keys/help/motd WS census messages |
+| `tests.test_mp_reliability_v05131` | hud_info extract · keys/help/motd units |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.
