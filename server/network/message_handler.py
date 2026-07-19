@@ -160,14 +160,16 @@ async def handle_message(
         import time as _time
 
         client_t = data.get("t")
-        outbound.append(
-            msg(
-                ServerMessageType.PONG,
-                t=client_t,
-                server_t=_time.time(),
-                online=len(manager.online_ids()),
-            )
-        )
+        pong_body: dict[str, Any] = {
+            "t": client_t,
+            "server_t": _time.time(),
+            "online": len(manager.online_ids()),
+            "zones": manager.zone_counts(),
+        }
+        if character_id is not None:
+            pong_body["nearby_count"] = len(manager.ids_nearby(character_id))
+            pong_body["session_id"] = manager.session_id(character_id)
+        outbound.append(msg(ServerMessageType.PONG, **pong_body))
         if data.get("sync") or data.get("presence"):
             if character_id is not None:
                 nearby = manager.nearby_players(character_id)
@@ -240,6 +242,7 @@ async def handle_message(
             msg(
                 ServerMessageType.WHO,
                 players=nearby,
+                nearby_count=len(nearby),
                 online=len(manager.online_ids()),
                 online_ids=manager.online_ids(),
                 roster=manager.online_roster(),
@@ -256,6 +259,70 @@ async def handle_message(
                     "radiant": manager.radiant_remaining(character_id),
                     "zone": you_zone,
                 },
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Nearby-only roster (lighter than full /who) ---
+    if msg_type in ("near", "nearby_list", "here"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        nearby = manager.nearby_players(character_id)
+        meta = manager.get_meta(character_id)
+        you_zone = None
+        if meta is not None:
+            try:
+                you_zone = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                you_zone = None
+        outbound.append(
+            msg(
+                "near",
+                players=nearby,
+                nearby_count=len(nearby),
+                online=len(manager.online_ids()),
+                zone=you_zone,
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Where am I / zone population (multiplayer social) ---
+    if msg_type in ("zone", "where", "area"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        manager.touch(character_id)
+        meta = manager.get_meta(character_id)
+        you_zone = None
+        x = y = None
+        if meta is not None:
+            try:
+                x, y = int(meta["x"]), int(meta["y"])
+                you_zone = zone_at(x, y)
+            except Exception:
+                you_zone = None
+        zones = manager.zone_counts()
+        # Same-zone roster (public cards, no x/y) for multiplayer social overview
+        mates = manager.zone_roster(character_id, include_self=True)
+        zone_pop = int(zones.get(you_zone, 0)) if you_zone else len(mates)
+        outbound.append(
+            msg(
+                "zone",
+                zone=you_zone,
+                x=x,
+                y=y,
+                zones=zones,
+                players=mates,
+                zone_count=len(mates),
+                population=zone_pop,
+                online=len(manager.online_ids()),
+                message=(
+                    f"You are in the {you_zone} ({len(mates)} here)."
+                    if you_zone in ("town", "field", "dungeon")
+                    else "You are somewhere on the map."
+                ),
             )
         )
         return character_id, user_id, outbound, None
@@ -379,13 +446,16 @@ async def handle_message(
                     {"cmd": "move", "hint": "WASD / arrow keys"},
                     {"cmd": "chat", "hint": "T global · Y nearby · /z zone"},
                     {"cmd": "whisper", "hint": "/w Name message"},
+                    {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
                     {"cmd": "status", "hint": "F or /status — self sheet"},
                     {"cmd": "look", "hint": "L — examine a player"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
-                    {"cmd": "emote", "hint": "E — cycle emotes"},
+                    {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
+                    {"cmd": "zone", "hint": "/zone · /where — area + who is here"},
+                    {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
                     {"cmd": "rest", "hint": "R — inn (town only)"},
-                    {"cmd": "inventory", "hint": "I — bag / shop"},
+                    {"cmd": "inventory", "hint": "I — bag (12 stacks · max 8) / shop"},
                     {"cmd": "use_spell", "hint": "H heal · M cycle field magic"},
                     {"cmd": "combat", "hint": "1–9 menu · A attack · F flee · H herb"},
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
@@ -879,21 +949,40 @@ async def handle_message(
                 end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
             outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
             if battle.outcome == "defeat":
+                # Multiplayer: nearby system note that the hero fell
+                hero = (manager.get_meta(character_id) or {}).get("name") or "Hero"
+                await manager.broadcast_nearby(
+                    character_id,
+                    msg(
+                        ServerMessageType.CHAT,
+                        player_id=character_id,
+                        name="System",
+                        text=f"{hero} was defeated!",
+                        channel="system",
+                        system=True,
+                    ),
+                    include_self=True,
+                    respect_ignore=False,
+                )
                 # Respawn in town with AOI refresh
                 aoi_msgs = await manager.publish_move(
                     character_id, SPAWN_X, SPAWN_Y, seq=None
                 )
                 outbound.extend(aoi_msgs)
-                outbound.append(
-                    msg(
-                        ServerMessageType.MOVE_OK,
-                        ok=True,
-                        x=SPAWN_X,
-                        y=SPAWN_Y,
-                        seq=None,
-                        reason="respawn",
-                    )
+                try:
+                    rzone = zone_at(SPAWN_X, SPAWN_Y)
+                except Exception:
+                    rzone = "town"
+                rmsg = msg(
+                    ServerMessageType.MOVE_OK,
+                    ok=True,
+                    x=SPAWN_X,
+                    y=SPAWN_Y,
+                    seq=None,
+                    reason="respawn",
+                    zone=rzone,
                 )
+                outbound.append(rmsg)
         return character_id, user_id, outbound, None
 
     # --- Movement (server-authoritative, ack'd, rate-limited, DB-deferred) ---
@@ -1163,16 +1252,7 @@ async def handle_message(
             ) and data.get("to_id") is None and data.get("player_id") is None:
                 outbound.append(msg(ServerMessageType.ERROR, reason="whisper target required"))
                 return character_id, user_id, outbound, None
-        allowed, retry = manager.allow_chat(character_id)
-        if not allowed:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
+        # Validate target BEFORE burning chat rate (self/offline must not rate-limit)
         if target_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
             return character_id, user_id, outbound, None
@@ -1190,6 +1270,16 @@ async def handle_message(
         # We have ignored them — don't allow whispering ignored players
         if manager.is_ignored_by(character_id, target_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+            return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         tmeta = manager.get_meta(target_id)
@@ -1240,17 +1330,8 @@ async def handle_message(
             channel = "nearby"
         if channel == "area":
             channel = "zone"
-        allowed, retry = manager.allow_chat(character_id)
-        if not allowed:
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="chat_rate_limit",
-                    retry_after=round(retry, 3),
-                )
-            )
-            return character_id, user_id, outbound, None
         # chat with channel=whisper and `to` name/id → private path
+        # Validate target BEFORE burning chat rate (same as dedicated whisper handler)
         if channel == "whisper":
             target_name = data.get("to") or data.get("name") or data.get("target")
             target_id = manager.find_id_by_player_id(
@@ -1266,6 +1347,9 @@ async def handle_message(
             if target_id is None:
                 outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
                 return character_id, user_id, outbound, None
+            if target_id not in manager.online_ids():
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
             if target_id == character_id:
                 outbound.append(msg(ServerMessageType.ERROR, reason="cannot whisper yourself"))
                 return character_id, user_id, outbound, None
@@ -1274,6 +1358,16 @@ async def handle_message(
                 return character_id, user_id, outbound, None
             if manager.is_ignored_by(character_id, target_id):
                 outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
+                return character_id, user_id, outbound, None
+            allowed, retry = manager.allow_chat(character_id)
+            if not allowed:
+                outbound.append(
+                    msg(
+                        ServerMessageType.ERROR,
+                        reason="chat_rate_limit",
+                        retry_after=round(retry, 3),
+                    )
+                )
                 return character_id, user_id, outbound, None
             tmeta = manager.get_meta(target_id)
             tname = (tmeta or {}).get("name") or (
@@ -1293,6 +1387,16 @@ async def handle_message(
             manager.note_whisper_from(target_id, character_id, name)
             manager.note_whisper_from(character_id, target_id, tname)
             return character_id, user_id, outbound, None
+        allowed, retry = manager.allow_chat(character_id)
+        if not allowed:
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="chat_rate_limit",
+                    retry_after=round(retry, 3),
+                )
+            )
+            return character_id, user_id, outbound, None
         zone_name = None
         if meta is not None:
             try:
@@ -1307,18 +1411,24 @@ async def handle_message(
             channel=channel,
             zone=zone_name if channel == "zone" else None,
         )
+        # Peers via broadcast (exclude self); self always via outbound once
+        # so local UI never loses the echo if a peer-send races/fails.
         if channel == "nearby":
             await manager.broadcast_nearby(
-                character_id, chat_msg, include_self=True, respect_ignore=True
+                character_id, chat_msg, include_self=False, respect_ignore=True
             )
         elif channel == "zone":
             await manager.broadcast_zone(
-                character_id, chat_msg, include_self=True, respect_ignore=True
+                character_id, chat_msg, include_self=False, respect_ignore=True
             )
         else:
             await manager.broadcast(
-                chat_msg, from_id=character_id, respect_ignore=True
+                chat_msg,
+                exclude=character_id,
+                from_id=character_id,
+                respect_ignore=True,
             )
+        outbound.append(chat_msg)
         return character_id, user_id, outbound, None
 
     # --- Emotes (nearby only) ---
@@ -1372,9 +1482,11 @@ async def handle_message(
             x=(meta or {}).get("x"),
             y=(meta or {}).get("y"),
         )
+        # Peers via AOI; self via outbound (reliable single echo)
         await manager.broadcast_nearby(
-            character_id, emote_msg, include_self=True, respect_ignore=True
+            character_id, emote_msg, include_self=False, respect_ignore=True
         )
+        outbound.append(emote_msg)
         return character_id, user_id, outbound, None
 
     # --- Use consumable (herb / wings / fairy water) ---
@@ -1413,20 +1525,26 @@ async def handle_message(
             manager.set_repel(character_id, int(info.get("repel_steps") or 0))
 
         if info.get("teleported"):
+            tx, ty = int(info["x"]), int(info["y"])
             aoi_msgs = await manager.publish_move(
-                character_id, int(info["x"]), int(info["y"]), seq=None
+                character_id, tx, ty, seq=None
             )
             outbound.extend(aoi_msgs)
-            outbound.append(
-                msg(
-                    ServerMessageType.MOVE_OK,
-                    ok=True,
-                    x=int(info["x"]),
-                    y=int(info["y"]),
-                    seq=None,
-                    reason="wings",
-                )
+            try:
+                tzone = zone_at(tx, ty)
+            except Exception:
+                tzone = None
+            mok = msg(
+                ServerMessageType.MOVE_OK,
+                ok=True,
+                x=tx,
+                y=ty,
+                seq=None,
+                reason="wings",
             )
+            if tzone:
+                mok["zone"] = tzone
+            outbound.append(mok)
 
         if in_combat and battle is not None and info.get("effect") == "heal":
             # Spend turn: heal already applied to DB — sync battle HP then enemy acts
@@ -1471,10 +1589,28 @@ async def handle_message(
                     end_payload["respawn"] = {"x": SPAWN_X, "y": SPAWN_Y}
                 outbound.append(msg(ServerMessageType.COMBAT_END, **end_payload))
                 if battle.outcome == "defeat":
+                    hero = (manager.get_meta(character_id) or {}).get("name") or "Hero"
+                    await manager.broadcast_nearby(
+                        character_id,
+                        msg(
+                            ServerMessageType.CHAT,
+                            player_id=character_id,
+                            name="System",
+                            text=f"{hero} was defeated!",
+                            channel="system",
+                            system=True,
+                        ),
+                        include_self=True,
+                        respect_ignore=False,
+                    )
                     aoi_msgs = await manager.publish_move(
                         character_id, SPAWN_X, SPAWN_Y, seq=None
                     )
                     outbound.extend(aoi_msgs)
+                    try:
+                        rzone = zone_at(SPAWN_X, SPAWN_Y)
+                    except Exception:
+                        rzone = "town"
                     outbound.append(
                         msg(
                             ServerMessageType.MOVE_OK,
@@ -1483,6 +1619,7 @@ async def handle_message(
                             y=SPAWN_Y,
                             seq=None,
                             reason="respawn",
+                            zone=rzone,
                         )
                     )
             outbound.append(

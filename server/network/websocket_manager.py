@@ -119,6 +119,7 @@ class ConnectionManager:
         repel = max(0, int(meta.get("repel_steps") or 0))
         radiant = max(0, int(meta.get("radiant_steps") or 0))
         ignore = set(meta.get("ignore") or set())
+        ignore_names = dict(meta.get("ignore_names") or {})
         last_from = meta.get("last_whisper_from_id")
         last_name = meta.get("last_whisper_from_name")
         if repel <= 0 and radiant <= 0 and not ignore and not last_from:
@@ -128,6 +129,7 @@ class ConnectionManager:
             "repel_steps": repel,
             "radiant_steps": radiant,
             "ignore": ignore,
+            "ignore_names": ignore_names,
             "last_whisper_from_id": last_from,
             "last_whisper_from_name": last_name,
             "expires": time.monotonic() + RECONNECT_SOFT_GRACE,
@@ -154,6 +156,7 @@ class ConnectionManager:
                 grace_repel = max(0, int(old_meta.get("repel_steps") or 0))
                 grace_radiant = max(0, int(old_meta.get("radiant_steps") or 0))
                 grace_ignore = set(old_meta.get("ignore") or set())
+                grace_ignore_names = dict(old_meta.get("ignore_names") or {})
                 grace_whisper_id = old_meta.get("last_whisper_from_id")
                 grace_whisper_name = old_meta.get("last_whisper_from_name")
             else:
@@ -161,6 +164,7 @@ class ConnectionManager:
                 grace_repel = max(0, int(bag.get("repel_steps") or 0))
                 grace_radiant = max(0, int(bag.get("radiant_steps") or 0))
                 grace_ignore = set(bag.get("ignore") or set())
+                grace_ignore_names = dict(bag.get("ignore_names") or {})
                 grace_whisper_id = bag.get("last_whisper_from_id")
                 grace_whisper_name = bag.get("last_whisper_from_name")
 
@@ -201,6 +205,7 @@ class ConnectionManager:
                 "session_id": session_id,
                 "visible": set(),  # peer ids currently in AOI
                 "ignore": grace_ignore,  # cid set — do not receive chat/emotes from these
+                "ignore_names": grace_ignore_names,  # tid -> name for offline display
                 "last_whisper_from_id": grace_whisper_id,
                 "last_whisper_from_name": grace_whisper_name,
             }
@@ -467,13 +472,19 @@ class ConnectionManager:
         return int(meta.get("last_move_seq") or 0)
 
     def find_id_by_name(self, name: str) -> int | None:
-        """Case-insensitive exact match against online character names."""
+        """Case-insensitive exact match against **live** online character names.
+
+        Orphan meta (no socket) must never resolve — whisper/look/ignore would
+        target ghosts and desync multiplayer social flows.
+        """
         if not name or not isinstance(name, str):
             return None
         key = name.strip().lower()
         if not key:
             return None
         for cid, meta in self._meta.items():
+            if cid not in self._connections:
+                continue
             if str(meta.get("name") or "").strip().lower() == key:
                 return cid
         return None
@@ -503,6 +514,12 @@ class ConnectionManager:
             return False, "ignore list full"
         ig.add(tid)
         meta["ignore"] = ig
+        # Cache display name so /ignores stays useful if they disconnect
+        names = dict(meta.get("ignore_names") or {})
+        tmeta = self._meta.get(tid)
+        if tmeta and tmeta.get("name"):
+            names[tid] = str(tmeta["name"])[:24]
+        meta["ignore_names"] = names
         return True, "ignored"
 
     def unignore_player(self, character_id: int, target_id: int) -> tuple[bool, str]:
@@ -515,19 +532,36 @@ class ConnectionManager:
             return True, "not ignored"
         ig.discard(tid)
         meta["ignore"] = ig
+        names = dict(meta.get("ignore_names") or {})
+        names.pop(tid, None)
+        # keys may be str after JSON-ish copies — also drop str form
+        names.pop(str(tid), None)
+        meta["ignore_names"] = names
         return True, "unignored"
 
     def ignore_list(self, character_id: int) -> list[dict[str, Any]]:
         meta = self._meta.get(character_id)
         if not meta:
             return []
+        names = meta.get("ignore_names") or {}
         out: list[dict[str, Any]] = []
         for tid in sorted(set(meta.get("ignore") or set())):
-            om = self._meta.get(int(tid))
-            if om and int(tid) in self._connections:
+            tid_i = int(tid)
+            om = self._meta.get(tid_i)
+            if om and tid_i in self._connections:
                 out.append(_online_card(om))
             else:
-                out.append({"id": int(tid), "name": "?", "level": 0, "in_combat": False, "idle": False})
+                cached = names.get(tid_i) or names.get(str(tid_i)) or "?"
+                out.append(
+                    {
+                        "id": tid_i,
+                        "name": str(cached)[:24],
+                        "level": 0,
+                        "in_combat": False,
+                        "idle": False,
+                        "offline": True,
+                    }
+                )
         return out
 
     def note_whisper_from(self, listener_id: int, speaker_id: int, speaker_name: str | None = None) -> None:
@@ -1099,6 +1133,29 @@ class ConnectionManager:
             if z == my_zone:
                 out.append(cid)
         return out
+
+    def zone_roster(
+        self, character_id: int, *, include_self: bool = True
+    ) -> list[dict[str, Any]]:
+        """Public cards for live players in the same zone (no x/y)."""
+        me = self._meta.get(character_id)
+        if me is None:
+            return []
+        ids = list(self.ids_in_zone(character_id))
+        if include_self and character_id in self._connections:
+            ids.append(character_id)
+        cards: list[dict[str, Any]] = []
+        for cid in ids:
+            meta = self._meta.get(cid)
+            if meta and cid in self._connections:
+                cards.append(_online_card(meta))
+        cards.sort(
+            key=lambda p: (
+                str(p.get("name") or "").lower(),
+                int(p.get("id") or 0),
+            )
+        )
+        return cards
 
     async def broadcast_zone(
         self,

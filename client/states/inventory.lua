@@ -2,6 +2,7 @@ local Network = require("client.network")
 local Session = require("client.session")
 local State = require("client.state")
 local UI = require("client.ui")
+local World = require("client.world")
 
 local Inventory = {
   mode = "bag", -- bag | shop
@@ -149,6 +150,17 @@ function Inventory:keypressed(key)
     self.selected = math.min(math.max(1, #list), self.selected + 1)
   elseif key == "tab" then
     if self.mode == "bag" then
+      -- Town only (tile code 2) — server also enforces this
+      local c = self.character or Session.character or {}
+      local x = math.floor(tonumber(c.world_x or c.x) or 2)
+      local y = math.floor(tonumber(c.world_y or c.y) or 2)
+      local row = World.map and World.map[y + 1]
+      local tile = row and row[x + 1]
+      if tile ~= 2 then
+        self.status = "Shop only in town"
+        UI.toast(self.status, "danger")
+        return
+      end
       Network.send({ type = "shop" })
     else
       self.mode = "bag"

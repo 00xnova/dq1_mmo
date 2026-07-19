@@ -117,6 +117,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 "who",
                 "players",
                 "online_list",
+                "near",
+                "nearby_list",
+                "here",
+                "zone",
+                "where",
+                "area",
                 "look",
                 "examine",
                 "status",
@@ -209,12 +215,19 @@ async def websocket_endpoint(websocket: WebSocket):
                         zone=join_zone,
                     )
                 )
-                # Stamp session id on auth_ok for reconnect hygiene
+                # Stamp session id + multiplayer welcome on auth_ok (not a chat
+                # line — avoids polluting the chat stream for clients/tests).
                 sid = manager.session_id(connect_meta["character_id"])
+                online_n = len(manager.online_ids())
+                hero = str(connect_meta.get("name") or "Hero")
+                zone_bit = f" in the {join_zone}" if join_zone else ""
+                heroes = "hero" if online_n == 1 else "heroes"
+                welcome = f"Welcome, {hero}! {online_n} {heroes} online{zone_bit}."
                 for o in outbound:
                     if o.get("type") == ServerMessageType.AUTH_OK:
                         o["session_id"] = sid
-                        o["online"] = len(manager.online_ids())
+                        o["online"] = online_n
+                        o["welcome"] = welcome
 
             # Deliver auth_ok / world_state / combat_resume BEFORE any global pulse so
             # clients always see auth_ok as the first post-auth message (not `online`).

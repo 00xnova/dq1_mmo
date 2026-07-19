@@ -12,11 +12,11 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who/players + idle roster + session_id | Multi-map worlds |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who/players/near/zone + idle roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat · zone on presence · `/players` alias | Binary protocol |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat · zone on presence · `/players` · `/near` · `/zone` · auth welcome | Binary protocol |
 
-**Version:** `0.5.41` (`server/config.py` → `VERSION`) · **175** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.46` (`server/config.py` → `VERSION`) · **197** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -136,7 +136,7 @@ All messages are JSON objects with a `type` string.
 
 | type | Purpose |
 |:-----|:--------|
-| `auth_ok` / `auth_fail` | Session (`session_id`, `online` on success) |
+| `auth_ok` / `auth_fail` | Session (`session_id`, `online`, optional `welcome` on success) |
 | `world_state` | `players`, `map`, optional `you` (`x`/`y`/`zone`), `online`, `repel`, `radiant`, `zone` (on auth + sync) |
 | `move_ok` | Ack: `ok`, `x`, `y`, `seq`, optional `zone`, `duplicate`/`reason` |
 | `player_joined` / `player_left` / `player_moved` | Presence (`player_left.reason`: `disconnect` \| `out_of_range`) |
@@ -153,7 +153,7 @@ All messages are JSON objects with a `type` string.
 | `rest_ok` | Inn result or preview (`cost`, `character`, `message`) |
 | `spell_cast` | Field magic result (`healed`, `teleported`, `repel_steps`, `radiant_steps`, `character`) |
 | `emote` | Nearby emote broadcast |
-| `who` | `players`, `online`, `roster`, `zones` (town/field/dungeon counts), `you` (`id`, `name`, `level`, `x`/`y`, `idle`, `in_combat`, `repel`, `radiant`, `zone`) |
+| `who` | `players`, `nearby_count`, `online`, `roster`, `zones`, `you` (`id`, `name`, `level`, `x`/`y`, `idle`, `in_combat`, `repel`, `radiant`, `zone`) |
 | `look` | `player` card (`id`, `name`, `level`, `in_combat`, `nearby`, optional `x`/`y`) |
 | `status` | `character` (stats/spells/xp_progress), `you` (x/y/zone/repel/radiant/in_combat), `online` |
 | `combat_update` | Includes `hero` public (status) + `legal_actions` with spell `name`/`mp_cost` |
@@ -219,6 +219,20 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 52. `/players` and msg types `players` / `online_list` alias **who** (rate-exempt).
 53. **Shop list** refused in combat (`in combat`); buy/sell already combat-gated.
 54. Shop catalog includes mid-tier **broad_sword** and **half_plate**.
+55. `find_id_by_name` only resolves **live sockets** (orphan meta never whisper/look targets).
+56. `/near` · `/here` (msg `near`/`nearby_list`/`here`) → nearby-only roster; rate-exempt.
+57. `auth_ok` includes **welcome** string + online count (not a chat message).
+58. `who` includes **nearby_count** matching `players` length.
+59. `/zone` · `/where` (msg `zone`/`where`/`area`) → own zone, coords, zone population; rate-exempt.
+60. Teleport/respawn **`move_ok` includes `zone`** (wings + death).
+61. Shop catalog includes **full_plate** and **silver_shield**.
+62. Whisper target validation (offline / self / ignore) runs **before** `allow_chat` so failed whispers never burn chat rate; global chat also **outbound.append** for reliable self-echo.
+63. Chat (global/nearby/zone) + emote: **peers via broadcast, self via outbound once** (no double-echo).
+64. `/zone` includes same-zone **players** roster (public cards) + `zone_count`.
+65. Ignore list caches **names** (soft-grace) so offline targets stay labeled.
+66. `pong` includes `zones`, `nearby_count`, `session_id` when authed.
+67. Bag caps: **12** stacks · **8** per stack (`inventory full` / `stack full` on buy/equip/unequip).
+68. Defeat broadcasts nearby **system** chat `"{name} was defeated!"` (both combat end paths).
 
 ## Tests (mandatory for your changes)
 
@@ -262,8 +276,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0536` | buy gold_spent + cost on not-enough-gold |
 | `tests.test_features_v0538` | leather/iron helmet shop, world_state/who.you zone, move_ok.zone + zone-enter system chat |
 | `tests.test_adversarial_v0539` | find zone:moon → invalid zone; non-integer move rejected; whisper self blocked |
+| `tests.test_features_v0544` | whisper self/offline must not burn chat rate; global self-echo |
+| `tests.test_mp_reliability_v0545` | zone roster; chat/emote single self-echo; ignore names offline; pong zones |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
+| `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
+| `tests.test_features_v0543` | /zone, fairy water repel, wings zone, full_plate/silver_shield shop |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

@@ -75,15 +75,17 @@ def test_buy_includes_gold_spent(tmp_path, monkeypatch):
                 assert gold1 == gold0 - 24
                 assert "Bought" in str(m.get("message") or "")
 
-                # Drain gold then buy expensive item → cost on error
-                for _ in range(30):
-                    await ws.send(json.dumps({"type": "buy", "item": "herb"}))
-                    await drain(ws, 0.02)
-                await ws.send(json.dumps({"type": "buy", "item": "copper_sword"}))
-                err = await recv_until(ws, "error", "inventory_update")
-                assert err.get("type") == "error", err
-                assert err.get("reason") == "not enough gold"
-                assert err.get("cost") is not None
+                # Drain gold with gear buys (herb stacks cap at 8 — cannot drain via herbs alone)
+                hit = False
+                for _ in range(40):
+                    await ws.send(json.dumps({"type": "buy", "item": "copper_sword"}))
+                    m2 = await recv_until(ws, "error", "inventory_update")
+                    if m2.get("type") == "error" and m2.get("reason") == "not enough gold":
+                        assert m2.get("cost") is not None
+                        hit = True
+                        break
+                    # sold/stack/inventory full still leave cost path for next attempt
+                assert hit, "never hit not enough gold"
 
         asyncio.run(flow())
     finally:

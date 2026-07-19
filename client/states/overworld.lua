@@ -90,7 +90,11 @@ local function bind_handlers(self)
     if World.local_player then
       self.zone = zone_name(World.local_player.x, World.local_player.y)
     end
-    UI.toast("Entered the world", "ok")
+    if data.welcome and tostring(data.welcome) ~= "" then
+      UI.toast(tostring(data.welcome), "ok")
+    else
+      UI.toast("Entered the world", "ok")
+    end
     -- Presence snapshot follows as world_state; ask again if reconnect was messy
     Network.send({ type = "sync" })
   end)
@@ -168,6 +172,73 @@ local function bind_handlers(self)
       )
     end
     UI.toast(string.format("Online %d · nearby %d%s%s", roster_n, n, zone_bit, extra), "info")
+  end)
+
+  Network.on("near", function(data)
+    if data.players then
+      World.set_players(data.players)
+    end
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    if data.zone then
+      self.zone = data.zone
+    end
+    local n = tonumber(data.nearby_count)
+    if not n then
+      n = type(data.players) == "table" and #data.players or 0
+    end
+    local names = {}
+    for _, p in ipairs(data.players or {}) do
+      if p.name then
+        names[#names + 1] = tostring(p.name)
+      end
+    end
+    local bit = (#names > 0) and (" · " .. table.concat(names, ", ")) or " · none"
+    local zbit = data.zone and (" [" .. tostring(data.zone) .. "]") or ""
+    UI.toast(string.format("Nearby %d%s%s", n, zbit, bit), "info")
+  end)
+
+  Network.on("zone", function(data)
+    if data.zone then
+      self.zone = data.zone
+    end
+    if data.zones then
+      self.zones = data.zones
+    end
+    if data.online ~= nil then
+      self.online = tonumber(data.online) or self.online
+    end
+    if data.x ~= nil then
+      self.status_x = tonumber(data.x)
+    end
+    if data.y ~= nil then
+      self.status_y = tonumber(data.y)
+    end
+    local z = data.zones or {}
+    local msg = data.message or ("Zone: " .. tostring(data.zone or "?"))
+    local pop = string.format(
+      " · town %d · field %d · dung %d · online %d",
+      tonumber(z.town) or 0,
+      tonumber(z.field) or 0,
+      tonumber(z.dungeon) or 0,
+      tonumber(data.online) or self.online or 0
+    )
+    if data.x ~= nil and data.y ~= nil then
+      pop = pop .. string.format(" · (%d,%d)", tonumber(data.x) or 0, tonumber(data.y) or 0)
+    end
+    -- Same-zone roster (names only — no other players' coordinates)
+    local here = data.players
+    if type(here) == "table" and #here > 0 then
+      local names = {}
+      for i = 1, math.min(#here, 8) do
+        local p = here[i]
+        names[#names + 1] = tostring(p.name or "?")
+      end
+      local extra = (#here > 8) and (" +" .. tostring(#here - 8)) or ""
+      pop = pop .. " · here: " .. table.concat(names, ", ") .. extra
+    end
+    UI.toast(tostring(msg) .. pop, "info")
   end)
 
   Network.on("online", function(data)
@@ -804,7 +875,7 @@ function Overworld:draw()
     h - 48,
     w - 24,
     36,
-    "WASD · T/Y chat · E emote · F stats · L look · R inn · H/M magic · O who · /find · Esc"
+    "WASD · T/Y chat · E emote · F stats · L look · R inn · H/M magic · O who · /zone · /find · Esc"
   )
 
   if self.status and self.status ~= "Connected" then
@@ -837,6 +908,12 @@ function Overworld:keypressed(key)
         local wants_who = text:match("^[/%!]who%s*$")
           or text:match("^[/%!]players%s*$")
           or text:match("^[/%!]online%s*$")
+        local wants_near = text:match("^[/%!]near%s*$")
+          or text:match("^[/%!]here%s*$")
+          or text:match("^[/%!]nearby%s*$")
+        local wants_zone = text:match("^[/%!]zone%s*$")
+          or text:match("^[/%!]where%s*$")
+          or text:match("^[/%!]area%s*$")
         local wants_ignores = text:match("^[/%!]ignores%s*$") or text:match("^[/%!]ignorelist%s*$")
         local find_q = text:match("^[/%!]find%s+(.+)$") or text:match("^[/%!]search%s+(.+)$")
         -- supports: /find Name · /find Name zone:field · /find zone:town
@@ -844,6 +921,10 @@ function Overworld:keypressed(key)
         local ign_name = text:match("^[/%!]ignore%s+(%S+)$") or text:match("^[/%!]mute%s+(%S+)$")
         local unign_name = text:match("^[/%!]unignore%s+(%S+)$") or text:match("^[/%!]unmute%s+(%S+)$")
         local reply_msg = text:match("^[/%!]r%s+(.+)$") or text:match("^[/%!]reply%s+(.+)$")
+        -- /say msg · /s msg → nearby; /g msg · /global msg → global
+        local say_msg = text:match("^[/%!]say%s+(.+)$") or text:match("^[/%!]s%s+(.+)$")
+        local global_msg = text:match("^[/%!]g%s+(.+)$") or text:match("^[/%!]global%s+(.+)$")
+        local emote_cmd = text:match("^[/%!]emote%s+(%S+)$") or text:match("^[/%!]e%s+(%S+)$")
         if wname and wmsg then
           Network.whisper(wname, wmsg)
           self.last_whisper_from = wname
@@ -856,12 +937,31 @@ function Overworld:keypressed(key)
           else
             UI.toast("No one to reply to", "danger")
           end
+        elseif say_msg and say_msg ~= "" then
+          Network.say(say_msg)
+        elseif global_msg and global_msg ~= "" then
+          Network.chat(global_msg, "global")
+        elseif emote_cmd and emote_cmd ~= "" then
+          Network.emote(emote_cmd:lower())
+          UI.toast("Emote: " .. emote_cmd:lower(), "info")
         elseif zmsg and zmsg ~= "" then
           Network.chat(zmsg, "zone")
         elseif wants_status then
           Network.request_status()
         elseif wants_who then
           Network.who()
+        elseif wants_near then
+          if Network.near then
+            Network.near()
+          else
+            Network.send({ type = "near" })
+          end
+        elseif wants_zone then
+          if Network.zone_info then
+            Network.zone_info()
+          else
+            Network.send({ type = "zone" })
+          end
         elseif wants_ignores then
           Network.ignores()
         elseif find_q and find_q ~= "" then

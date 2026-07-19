@@ -295,6 +295,14 @@ function Network.who()
   return Network.send({ type = "who" })
 end
 
+function Network.near()
+  return Network.send({ type = "near" })
+end
+
+function Network.zone_info()
+  return Network.send({ type = "zone" })
+end
+
 function Network.ignore(name)
   return Network.send({ type = "ignore", name = tostring(name or "") })
 end

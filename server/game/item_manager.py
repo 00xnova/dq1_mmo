@@ -18,6 +18,10 @@ SLOT_COLUMNS = {
 # Fairy Water: suppress random encounters for this many steps
 REPEL_STEPS = 64
 
+# Inventory caps (DQ-style limited bag — economy / anti-hoard reliability)
+MAX_BAG_SLOTS = 12  # distinct item stacks in the bag
+MAX_STACK_QTY = 8  # max quantity per stack
+
 
 def get_equipment_def(item_id: str | None) -> dict | None:
     if not item_id:
@@ -110,7 +114,49 @@ async def list_items(db, character_id: int) -> list[dict]:
     return out
 
 
-async def add_item(db, character_id: int, item_id: str, quantity: int = 1) -> None:
+async def bag_slot_count(db, character_id: int) -> int:
+    """Number of distinct non-equipped item stacks."""
+    async with db.execute(
+        "SELECT COUNT(*) AS n FROM item_instances WHERE character_id = ? AND is_equipped = 0",
+        (character_id,),
+    ) as c:
+        row = await c.fetchone()
+    try:
+        return int(row["n"] if row and "n" in row.keys() else (row[0] if row else 0))
+    except Exception:
+        return 0
+
+
+async def can_receive_item(
+    db, character_id: int, item_id: str, quantity: int = 1
+) -> tuple[bool, str]:
+    """Whether the bag can accept `quantity` of `item_id` under stack/slot caps."""
+    if quantity < 1:
+        return False, "bad quantity"
+    async with db.execute(
+        "SELECT id, quantity FROM item_instances WHERE character_id = ? AND item_id = ? AND is_equipped = 0",
+        (character_id, item_id),
+    ) as c:
+        row = await c.fetchone()
+    if row:
+        new_q = int(row["quantity"]) + int(quantity)
+        if new_q > MAX_STACK_QTY:
+            return False, "stack full"
+        return True, "ok"
+    # New stack needs a free bag slot
+    used = await bag_slot_count(db, character_id)
+    if used >= MAX_BAG_SLOTS:
+        return False, "inventory full"
+    if int(quantity) > MAX_STACK_QTY:
+        return False, "stack full"
+    return True, "ok"
+
+
+async def add_item(db, character_id: int, item_id: str, quantity: int = 1) -> bool:
+    """Add to bag. Returns False if caps would be exceeded (no partial add)."""
+    ok, _reason = await can_receive_item(db, character_id, item_id, quantity)
+    if not ok:
+        return False
     async with db.execute(
         "SELECT id, quantity FROM item_instances WHERE character_id = ? AND item_id = ? AND is_equipped = 0",
         (character_id, item_id),
@@ -126,6 +172,7 @@ async def add_item(db, character_id: int, item_id: str, quantity: int = 1) -> No
             "INSERT INTO item_instances (character_id, item_id, quantity, is_equipped) VALUES (?, ?, ?, 0)",
             (character_id, item_id, quantity),
         )
+    return True
 
 
 async def remove_item(db, character_id: int, item_id: str, quantity: int = 1) -> bool:
@@ -161,8 +208,17 @@ async def equip_item(db, character: dict, slot: str, item_id: str) -> tuple[bool
 
     col = SLOT_COLUMNS[slot]
     prev = character.get(col)
+    # item_id already removed from bag — room may free for swapping prev gear back in
     if prev:
-        await add_item(db, character["id"], prev, 1)
+        can, reason = await can_receive_item(db, character["id"], prev, 1)
+        if not can:
+            await add_item(db, character["id"], item_id, 1)
+            await db.commit()
+            return False, reason
+        if not await add_item(db, character["id"], prev, 1):
+            await add_item(db, character["id"], item_id, 1)
+            await db.commit()
+            return False, "inventory full"
 
     await db.execute(
         f"UPDATE characters SET {col} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
@@ -180,11 +236,22 @@ async def unequip_item(db, character: dict, slot: str) -> tuple[bool, str]:
     prev = character.get(col)
     if not prev:
         return False, "nothing equipped"
+    can, reason = await can_receive_item(db, character["id"], prev, 1)
+    if not can:
+        return False, reason
     await db.execute(
         f"UPDATE characters SET {col} = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (character["id"],),
     )
-    await add_item(db, character["id"], prev, 1)
+    if not await add_item(db, character["id"], prev, 1):
+        # restore equip
+        await db.execute(
+            f"UPDATE characters SET {col} = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (prev, character["id"]),
+        )
+        await db.commit()
+        character[col] = prev
+        return False, "inventory full"
     await db.commit()
     character[col] = None
     return True, "ok"
@@ -204,12 +271,24 @@ async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
     gold = _safe_gold(character)
     if gold < price:
         return False, "not enough gold", {"cost": price, "gold": gold}
+    can, reason = await can_receive_item(db, character["id"], item_id, 1)
+    if not can:
+        return False, reason, {"gold": gold}
     gold -= price
     await db.execute(
         "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (str(gold), character["id"]),
     )
-    await add_item(db, character["id"], item_id, 1)
+    if not await add_item(db, character["id"], item_id, 1):
+        # Extremely unlikely race — refund gold
+        gold += price
+        await db.execute(
+            "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (str(gold), character["id"]),
+        )
+        await db.commit()
+        character["gold"] = str(gold)
+        return False, "inventory full", {"gold": gold}
     await db.commit()
     character["gold"] = str(gold)
     return (

@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.41-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.46-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-175_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-197_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -45,7 +45,7 @@
 ---
 
 Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
-Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear, and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`** · **`/players`**, **`/ignore`**, emotes, and look.
+Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag), and socialize — global / nearby / zone chat, whispers + **`/r`**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`**, **`/ignore`**, emotes, and look.
 
 > [!NOTE]
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
@@ -82,7 +82,7 @@ protocol · tests · not for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.41** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.46** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -98,17 +98,17 @@ protocol · tests · not for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.41-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-175_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.46-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-197_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.41** |
+| | **v0.5.46** |
 |:--|:--|
-| 🛒 | **Shop closed during combat** (no browsing mid-fight) |
-| ⚔️ | Town shop stocks **Broad Sword** + **Half Plate** |
-| 👥 | Presence zone · `/players` · live zone chat |
-| ✅ | **175** automated tests |
+| 🎒 | **Bag limits** — 12 item kinds · max 8 each (DQ-style) |
+| 💀 | Nearby heroes see when someone is **defeated** |
+| 💬 | Slash: **`/say`** · **`/g`** · **`/emote`** · zone toast lists **who is here** |
+| ✅ | **197** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -117,12 +117,14 @@ protocol · tests · not for players
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.45** | `/zone` who-is-here · reliable chat/emote self-echo · ignore names offline · richer pong |
+| **0.5.44** | Failed whispers no longer block the next chat · global self-echo |
+| **0.5.43** | `/zone` · wings/respawn zone · Full Plate / Silver Shield · fairy water |
+| **0.5.42** | Welcome toast · `/near` · live name lookup |
+| **0.5.41** | Shop combat gate · Broad Sword / Half Plate |
 | **0.5.40** | Presence zone · `/players` · live zone chat |
 | **0.5.39** | Invalid find zones · integer-only moves |
-| **0.5.38** | Helmets in shop · status position · shop need-N-G toast |
-| **0.5.37** | Zone-enter system notes · CC0 art polish · status zone |
-| **0.5.36** | Buy gold toast · status zone badge |
-| **0.5.35** | `/find zone:town` zone list · invalid zones rejected |
+| **0.5.35–38** | Helmets · status position · zone find · gold toasts |
 | **0.5.19–34** | Zone chat · `/r` · presence self-heal · open art |
 
 </details>
@@ -158,7 +160,7 @@ protocol · tests · not for players
 | | |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · whisper · **`/r` reply** · emotes |
-| 🔍 | **`/find`** · zone filter · **`/who`** · **`/players`** · **`/ignore`** · look |
+| 🔍 | **`/find`** · **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/ignore`** · look |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -168,10 +170,11 @@ protocol · tests · not for players
 
 | Also | |
 |:-----|:--|
-| **Items** | Herb · wings · fairy water · weapons · armor · **helmets** |
+| **Items** | Herb · wings · fairy water · weapons · armor · **helmets** · Full Plate · Silver Shield |
+| **Bag** | **12** stacks · **8** per stack · buy blocked when full |
 | **HUD** | HP/MP · gold · zone · **your position** · nearby/online · repel · light · status (**F**) |
-| **Shop UX** | Buy/sell gold toasts · need-N-G when short · sell-back prices |
-| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **175** tests |
+| **Shop UX** | Buy/sell gold toasts · need-N-G when short · sell-back · **town only** (not in combat) |
+| **Stability** | Server-authoritative movement · combat resume · auto presence repair · **197** tests |
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -209,15 +212,15 @@ love client
 
 1. **Register** → create a hero (gold + **3 herbs**)
 2. Hero select: **N** new · **D** delete (**Y** confirm) · max **3** heroes
-3. **Enter World** — spawn in **town** (safe)
-4. **R** inn · **I** bag/shop · field for fights · **F** status
+3. **Enter World** — spawn in **town** (safe) · welcome toast with online count
+4. **R** inn · **I** bag/shop · field for fights · **F** status · **`/near`** / **`/zone`** for multiplayer awareness
 
 ### 3 · Tests
 
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 175 passed
+# expect: 197 passed
 ```
 
 ---
@@ -233,16 +236,21 @@ python tests/run_tests.py
 |:---:|:-------|
 | **WASD** | Move |
 | **T** / **Y** | Global / nearby chat |
+| **/say msg** · **/s msg** | Nearby chat (slash) |
+| **/g msg** · **/global msg** | Global chat (slash) |
 | **/w Name msg** | Whisper (also `/tell`) |
 | **/z msg** | Zone chat (same area type: town / field / dungeon) |
+| **/emote wave** · **/e wave** | Emote by name |
 | **/find Name** | Search online players by name prefix |
 | **/find zone:town** | List everyone online in that zone |
 | **/who** · **/players** | Online + nearby + zone counts (same as **O**) |
+| **/near** · **/here** | Heroes in view range (names toast) |
+| **/zone** · **/where** | Your zone, map position, **who is here**, population |
 | **/status** · **/me** | Status sheet (same as **F** · shows zone & position) |
 | **/help** · **?** | Command / key hints |
 | **/ignore Name** | Mute a player's chat & emotes |
 | **/unignore Name** | Unmute |
-| **/ignores** | List who you muted |
+| **/ignores** | List who you muted (names kept if offline) |
 | **/r message** | Reply to last whisper |
 | **/** | Open chat with `/` draft |
 | **E** | Cycle emotes |
@@ -285,6 +293,8 @@ python tests/run_tests.py
 | **R** | Inn *(town)* |
 | **Tab** | Shop list *(town)* |
 
+Bag holds **12** item kinds, up to **8** of each.
+
 </details>
 
 <details>
@@ -306,14 +316,19 @@ python tests/run_tests.py
 
 | Command | Effect |
 |:--------|:-------|
+| `/say message` · `/s message` | Nearby chat |
+| `/g message` · `/global message` | Global chat |
 | `/w Name message` | Private whisper (`/tell` works too) |
 | `/z message` | Zone chat (everyone in town *or* field *or* dungeon) |
+| `/emote wave` · `/e wave` | Emote by name |
 | `/find Name` | Online search by prefix — zone type only, **no map positions** |
 | `/find Name zone:field` | Limit search to town / field / dungeon |
 | `/find zone:town` | List everyone online in that zone (no coords) |
 | `/who` · `/players` | Online roster + nearby + town/field/dungeon counts |
+| `/near` · `/here` | Heroes in view range only (names toast) |
+| `/zone` · `/where` | Your zone, position, **who is here**, area population |
 | `/ignore Name` · `/unignore Name` | Mute / unmute chat & emotes |
-| `/ignores` | List who you are ignoring |
+| `/ignores` | List who you are ignoring (names stay after they leave) |
 | `/status` · `/me` | Status sheet (stats, gear, EXP, **zone**, **your position**, buffs) |
 | `/r message` | Reply to last whisper (works after a brief reconnect) |
 | `/help` · **?** | Server command list |
@@ -477,7 +492,7 @@ Agents → AGENTS.md ONLY
 
 <p align="center">
   <sub>
-    <b>v0.5.41</b> · 175 tests ·
+    <b>v0.5.46</b> · 197 tests ·
     <a href="docs/HUMAN.md">Player guide</a> ·
     <a href="AGENTS.md">Agent contract</a> ·
     <a href="docs/README.md">Docs map</a>
