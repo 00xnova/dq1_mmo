@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.122** (2026-07-19) · suite **629** tests · soft reconnect last whisper peer card · near/far
+**Last docs refresh:** **v0.5.122** (2026-07-19) · suite **629** tests · soft reconnect last whisper near/far · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -67,7 +67,7 @@ flowchart TB
 - Social: `/say` `/g` `/w` `/z` `/roll` `/find` `/who` `/near` `/ignore` `/r` `/inn` …
 - Shop town-only · not in combat · gold toasts · high-tier gear
 - Join welcome may mention nearby heroes
-- Soft reconnect: mute list, last whisper partner, **share partners**, **emote partners**, **meetup invite peers**, and buffs survive a brief disconnect
+- Soft reconnect: mute list, **last whisper partner** (near/far when online), **share partners**, **emote partners**, **meetup invite peers**, and buffs survive a brief disconnect
 - Brief reconnect can keep your session timer; a full leave starts a fresh one
 - Failed private messages do not block your next chat line
 - `/version` · `/time` · `/whoami` · `/stats` · `/whereami` · `/motd` · `/afk` · `/quit`

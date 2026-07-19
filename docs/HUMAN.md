@@ -37,7 +37,7 @@ A multiplayer **Dragon Quest I–style** game on one shared map.
 | **Magic** | Field heal · return · repel · radiant · outside · **`/cast`** from chat |
 | **Social** | Global · nearby · zone · yell · whisper · `/r` · invite / cancel / pending · **share** · **`/lastshare`** · **`@share`** / **`@from`** · **wave** · **`/lastemote`** (to + from) · **`@emote`** / **`@emotedby`** · askwhere · thank · poke · accept / decline · fighting · social (near/far) · emotes · roll · look · find · who |
 | **Peeks** | **`/hp`** · **`/xp`** · **`/gold`** · **`/buffs`** · **`/played`** · **`/ping`** · **`/bag`** · **`/status`** · nearby combat · zone population |
-| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect (mute list · last whisper · **share** · **emote** · **invite** peers · buffs) · **`/stuck` home** · mute list · **change password** · swappable PNG art |
+| **Meta** | **`/afk lunch`** · **`/busy`** · soft reconnect (mute list · **last whisper** near/far · **share** · **emote** · **invite** peers · buffs) · **`/stuck` home** · mute list · **change password** · swappable PNG art |
 
 **Not in the MVP:** parties · PvP · trade · quests · multi-map worlds.
 

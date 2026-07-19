@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.122</b> · <b>629</b> tests green · soft reconnect (share · emote · invite) · meetup · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.122</b> · <b>629</b> tests green · soft reconnect (whisper · share · emote · invite) · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -68,14 +68,14 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · two-way social memory · <b>soft reconnect</b> restores share · wave · invite · AFK.
+  Server-side 1v1 · shop · whisper · meetup · two-way social memory · <b>soft reconnect</b> restores whisper · share · wave · invite · AFK.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
-  <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-share_·_emote_·_invite-06b6d4?style=flat-square" />
+  <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-whisper_·_share_·_emote_·_invite-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
   <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_lunch-f97316?style=flat-square" />
@@ -195,52 +195,63 @@ flowchart LR
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
-| | **v0.5.122** — whisper soft reconnect cards · **629** tests |
+| | **v0.5.122** — whisper soft reconnect · **629** tests |
 |:--|:--|
-| 💬 | Soft reconnect **last whisper** is a full peer card (online · near/far · zone) |
-| 🔁 | **`/lastwhisper`** shows the same near/far badges as share/emote peeks |
-| 📍 | Auth/sync `last_whisper` matches other social peer cards |
+| 💬 | After a brief drop, **`/r`** still knows who you were whispering |
+| 📍 | **`/lastwhisper`** shows if they are online and **near or far** |
+| 🔄 | Soft reconnect keeps whisper · share · wave · meetup memory together |
 | ✅ | **629** automated tests green |
 
 <p align="center">
   <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.122-7c3aed?style=for-the-badge" />
-  <img alt="whisper" src="https://img.shields.io/badge/last_whisper-near_·_far-06b6d4?style=for-the-badge" />
+  <img alt="whisper" src="https://img.shields.io/badge//r_·_/lastwhisper-near_·_far-06b6d4?style=for-the-badge" />
   <img alt="tests" src="https://img.shields.io/badge/629_tests-059669?style=for-the-badge" />
 </p>
 
 <table>
 <tr>
-<td width="33%" valign="top" align="center">
+<td width="25%" valign="top" align="center">
+
+### 💬 Whisper
+| | |
+|:--|:--|
+| **`/r`** | reply last whisper |
+| **`/lastwhisper`** | who that is |
+
+<sub>survives soft reconnect</sub>
+
+</td>
+<td width="25%" valign="top" align="center">
 
 ### 📍 Share
 | Alias | Means |
 |:------|:------|
-| **`@share`** | who *you* shared with |
-| **`@from`** | who shared *with you* |
+| **`@share`** | you shared with |
+| **`@from`** | shared with you |
 
 <sub>**`/lastshare`**</sub>
 
 </td>
-<td width="33%" valign="top" align="center">
+<td width="25%" valign="top" align="center">
 
 ### 👋 Wave
 | Alias | Means |
 |:------|:------|
-| **`@emote`** | who *you* waved at |
-| **`@emotedby`** | who waved *at you* |
+| **`@emote`** | you waved at |
+| **`@emotedby`** | waved at you |
 
 <sub>**`/lastemote`**</sub>
 
 </td>
-<td width="33%" valign="top" align="center">
+<td width="25%" valign="top" align="center">
 
 ### 🤝 Meetup
 | Command | Means |
 |:--------|:------|
-| **`/invite`** | private meetup ping |
+| **`/invite`** | meetup ping |
 | **`/pending`** | open invites |
 
-<sub>**`/lastinvite`** · **`@pending`**</sub>
+<sub>**`/lastinvite`**</sub>
 
 </td>
 </tr>
@@ -248,20 +259,20 @@ flowchart LR
 
 <p align="center">
   <img alt="at" src="https://img.shields.io/badge/aliases-always_type_@-6366f1?style=for-the-badge" />
-  <img alt="survive" src="https://img.shields.io/badge/all_three-survive_soft_reconnect-06b6d4?style=for-the-badge" />
+  <img alt="survive" src="https://img.shields.io/badge/whisper_·_share_·_wave_·_invite-soft_reconnect-06b6d4?style=for-the-badge" />
 </p>
 
 ```mermaid
 flowchart TB
   subgraph play ["While online"]
-    W["/wave · /share · /invite"] --> M[Social memory]
+    W["/w · /wave · /share · /invite"] --> M[Social memory]
   end
   subgraph drop ["Brief disconnect ~1 min"]
     M --> S[Soft reconnect bag]
   end
   subgraph back ["You rejoin"]
     S --> R[Welcome may list Restored]
-    R --> A["@emote · @share · /pending still work"]
+    R --> A["/r · @emote · @share · /pending still work"]
   end
 ```
 
@@ -270,7 +281,7 @@ flowchart TB
 > **First hour:** clothes + herbs · **`/buy copper sword`** · **`/wave`** · **`/busy lunch`** · **`/who`** · **`/near`** · **`/stuck`** if lost.
 
 > [!NOTE]
-> **Brief disconnect (~1 min):** mute list, last whisper, **share partners**, **emote partners**, **meetup invites**, and buffs come back when you rejoin — no need to re-wave or re-invite just to remember who you were meeting.
+> **Brief disconnect (~1 min):** mute list, **last whisper** (so **`/r`** works), **share partners**, **emote partners**, **meetup invites**, and buffs come back when you rejoin — including whether that whisper partner is **near or far**.
 
 > [!IMPORTANT]
 > **Two audiences, two trees — do not mix.**  
@@ -551,7 +562,7 @@ python tests/run_tests.py
 | **/discard fairy water** | Destroy bag items (optional qty) |
 | **/ping** | Latency check |
 | **/r message** | Reply last whisper |
-| **/last** | Who `/r` will target |
+| **/last** · **/lastwhisper** | Who `/r` targets (near/far when online) |
 | **/roll** · **/dice** · **/roll 20** | Nearby dice |
 | **/counts** · **/census** | Online + zone totals |
 | **/find Name** · **/find zone:town** · **/find afk** | Search online (no map coords) |
@@ -639,7 +650,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 |:--------|:-------|
 | `/w Name message` | Whisper — full name or **unique prefix** |
 | `/r message` | Reply last whisper |
-| `/last` · `/lastwhisper` | See who `/r` targets |
+| `/last` · `/lastwhisper` | See who `/r` targets (near/far when online) |
 | `/say` · `/s` · `/g` · `/z` · `/yell` · `/shout` | Nearby · global · zone chat |
 | `/stuck` · `/unstuck` · `/home` | Free return to town |
 | `/emote` · `/emotes` · `/wave` · `/wave Name` · `/wave @last` | List, perform, or direct an emote |
