@@ -1,0 +1,35 @@
+{
+  "herb": {
+    "id": "herb",
+    "name": "Herb",
+    "type": "consumable",
+    "price": 24,
+    "effect": "heal",
+    "heal_min": 20,
+    "heal_max": 35
+  },
+  "copper_sword": {
+    "id": "copper_sword",
+    "name": "Copper Sword",
+    "type": "weapon",
+    "slot": "weapon",
+    "price": 180,
+    "attack": 10
+  },
+  "leather_armor": {
+    "id": "leather_armor",
+    "name": "Leather Armor",
+    "type": "armor",
+    "slot": "armor",
+    "price": 70,
+    "defense": 4
+  },
+  "small_shield": {
+    "id": "small_shield",
+    "name": "Small Shield",
+    "type": "shield",
+    "slot": "shield",
+    "price": 90,
+    "defense": 4
+  }
+}

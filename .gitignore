@@ -1,0 +1,31 @@
+# Python
+server/.venv/
+server/__pycache__/
+server/**/__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+*.egg-info/
+
+# Game data / local DB
+data/*.db
+data/*.db-*
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+
+# Love2D
+client/libs/websocket/
+client/libs/dq1-combat/
+client/libs/lua-bignumber/
+client/libs/save-system/
+*.love
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
