@@ -1553,6 +1553,9 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.SHOP:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         # Require live presence + town (was: missing meta skipped the town check)
         if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":

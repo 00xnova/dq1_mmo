@@ -9,7 +9,7 @@ For **people**: players, operators, and human contributors.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
-**Version:** 0.5.40 · **172** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.41 · **175** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -22,7 +22,7 @@ A multiplayer **Dragon Quest I–style** game:
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
 - Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups nearby; zone-enter notes)
-- Emotes, **look**, **`/find`** (optional **zone:** filter), **`/who`**, **`/ignore`** / **`/ignores`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
+- Emotes, **look**, **`/find`** (optional **zone:** filter), **`/who`** · **`/players`**, **`/ignore`** / **`/ignores`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
 - Shop, gear (sell-back prices + gold spent/gained toasts), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
 
@@ -107,7 +107,9 @@ Shop listings show **buy** and **sell-back** prices (sell is half of buy).
 Your bag also shows each item’s **sell** value so you know what **S** will earn.  
 After **buying** or **selling**, you see a toast with gold spent or gained.  
 If you can’t afford an item, the toast shows **how much gold you need**.  
-Helmets for sale include **Leather Helmet**, **Iron Helmet**, and **Dragon’s Scale**.
+Helmets for sale include **Leather Helmet**, **Iron Helmet**, and **Dragon’s Scale**.  
+Weapons include up through **Broad Sword**; armor includes **Half Plate**.  
+You cannot open the **shop** (or buy/sell) while in combat.
 
 ---
 
@@ -138,7 +140,7 @@ Helmets for sale include **Leather Helmet**, **Iron Helmet**, and **Dragon’s S
 | **C** | Toggle chat panel |
 
 **HUD:** nearby · online · **repel N** · **light N** (Radiant) when active.  
-**F** status sheet: level, EXP (+ to next), gold, **zone**, **your map position**, repel/light steps, ATK/DEF bonuses, gear, spells.  
+**F** status sheet: level, EXP (+ to next), gold, **zone**, **your map position** (x, y), repel/light steps, ATK/DEF bonuses, gear, spells.  
 **Online roster** (O / player list) shows names/levels, zone type, ⚔ in combat, idle/AFK — **not** map positions for online list.  
 Nearby list still shows coordinates for people you can see.  
 Roster updates also keep **town / field / dungeon** counts so you can see where people are gathering.
@@ -165,7 +167,7 @@ Bare **`/find zone:town`** lists all online heroes in town. Invalid zone names a
 | Context | Keys |
 |:--------|:-----|
 | **Hero select** | ↑↓ · Enter · N new · D delete (Y confirm) · Esc logout |
-| **Overworld** | WASD · T/Y chat · /w · /z · /find · /who · /ignore · /ignores · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
+| **Overworld** | WASD · T/Y chat · /w · /z · /find · /who · /players · /ignore · /ignores · /status · /help · /r · E · F · L · R · H/M · K · O · I · Esc |
 | **Combat** | ↑↓ · Enter · **1–9** menu · A / F / H |
 | **Inventory** | Enter · R inn · S sell · U unequip · Tab shop |
 
@@ -226,7 +228,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 172 passed
+# expect: 175 passed
 ```
 
 ---
@@ -241,6 +243,6 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/z` `/find` `/who` `/ignore` `/status`) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/z` `/find` `/who` `/players` `/ignore` `/status`) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

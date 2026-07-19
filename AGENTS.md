@@ -12,11 +12,11 @@ You are editing this multiplayer game. Prefer this file over guessing.
 |:-------------|:----------------------------|
 | Love2D client + FastAPI WS server | Parties / PvP / trade |
 | Server-authoritative DQ1 1v1 combat | Idle offline progress |
-| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who + idle roster + session_id | Multi-map worlds |
+| Grid overworld, AOI, chat (global/nearby/zone/system)/emotes/whisper/reply/look/find/status/ignore, who/players + idle roster + session_id | Multi-map worlds |
 | Auth JWT, equip/shop/sell (incl. equipped + sell_price), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
-| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat | Binary protocol |
+| Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · zone-enter system chat · zone on presence · `/players` alias | Binary protocol |
 
-**Version:** `0.5.40` (`server/config.py` → `VERSION`) · **172** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.41` (`server/config.py` → `VERSION`) · **175** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -217,6 +217,8 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 50. `ids_in_zone` / zone chat only **live sockets** (orphan meta never receives zone traffic).
 51. Online roster + find results sorted by name then id (stable multiplayer UI).
 52. `/players` and msg types `players` / `online_list` alias **who** (rate-exempt).
+53. **Shop list** refused in combat (`in combat`); buy/sell already combat-gated.
+54. Shop catalog includes mid-tier **broad_sword** and **half_plate**.
 
 ## Tests (mandatory for your changes)
 
@@ -261,6 +263,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_features_v0538` | leather/iron helmet shop, world_state/who.you zone, move_ok.zone + zone-enter system chat |
 | `tests.test_adversarial_v0539` | find zone:moon → invalid zone; non-integer move rejected; whisper self blocked |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
+| `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.

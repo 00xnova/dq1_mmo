@@ -3,7 +3,8 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.40** (2026-07-19) · suite green **172** tests · `VERSION` in `server/config.py`
+**Last docs refresh:** **v0.5.41** (2026-07-19) · suite green **175** tests · `VERSION` in `server/config.py`  
+**Rule:** humans never need protocol files; agents never treat README as the contract.
 
 ---
 
@@ -45,8 +46,9 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 - Install & quick start · overworld / combat / inventory keys
 - Zones (town / field / dungeon) · zone badge · zone-enter chat notes
 - Shop buy/sell gold toasts · need-N-G when short · helmets in shop · inn · field magic
-- Social: `/w` · `/z` · `/find` (+ `zone:`) · `/who` · `/ignore` · `/r` · `/status`
+- Social: `/w` · `/z` · `/find` (+ `zone:`) · `/who` · `/players` · `/ignore` · `/r` · `/status`
 - Status sheet: **own** position + zone + repel/light; online roster shows **zone type** only (never others’ coords)
+- Nearby join toasts may show peer **zone**; zone chat stays within town / field / dungeon
 - CC0 pixel art + optional SVG companions under `client/assets/`
 
 ---
