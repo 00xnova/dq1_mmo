@@ -1958,11 +1958,31 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         manager.touch(character_id)
+        ignores = manager.ignore_list(character_id)
+        n_on = sum(1 for c in ignores if c.get("online"))
+        n_off = len(ignores) - n_on
+        if ignores:
+            bits = []
+            for c in ignores[:8]:
+                nm = c.get("name") or "?"
+                if c.get("online"):
+                    near = "near" if c.get("nearby") else "far"
+                    bits.append(f"{nm}[{near}]")
+                else:
+                    bits.append(f"{nm}(offline)")
+            more = f" +{len(ignores) - 8} more" if len(ignores) > 8 else ""
+            ig_msg = f"Mute list ({len(ignores)}): " + ", ".join(bits) + more
+        else:
+            ig_msg = "Mute list empty."
         outbound.append(
             msg(
                 ServerMessageType.IGNORE,
                 action="list",
-                ignores=manager.ignore_list(character_id),
+                ignores=ignores,
+                count=len(ignores),
+                online_count=n_on,
+                offline_count=n_off,
+                message=ig_msg,
             )
         )
         return character_id, user_id, outbound, None

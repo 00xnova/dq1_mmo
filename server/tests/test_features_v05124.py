@@ -59,7 +59,9 @@ def test_auth_restored_played_ws(tmp_path, monkeypatch):
 
             async with websockets.connect(ws_url) as ws:
                 await auth(ws, ta, ca["id"])
-                await asyncio.sleep(0.35)
+                await asyncio.sleep(0.45)
+            # Allow server soft-disconnect to finish before rejoin (avoid live-replace race)
+            await asyncio.sleep(0.35)
 
             async with websockets.connect(ws_url) as ws2:
                 await ws2.send(

@@ -866,28 +866,46 @@ class ConnectionManager:
         return True, "unignored"
 
     def ignore_list(self, character_id: int) -> list[dict[str, Any]]:
+        """Muted peers for /ignores · auth soft reconnect.
+
+        Online entries match roster cards plus ``online`` / ``nearby`` (AOI vs
+        viewer, no coords) so soft reconnect mute lists stay multiplayer-useful.
+        Offline entries keep cached names from soft-grace.
+        """
         meta = self._meta.get(character_id)
         if not meta:
             return []
+        # Lazy import avoids circular handlers ↔ manager load order
+        from network.handlers._common import social_peer_card
+
         names = meta.get("ignore_names") or {}
         out: list[dict[str, Any]] = []
         for tid in sorted(set(meta.get("ignore") or set())):
             tid_i = int(tid)
             om = self._meta.get(tid_i)
+            cached = names.get(tid_i) or names.get(str(tid_i))
             if om and tid_i in self._connections:
-                out.append(_online_card(om))
+                entry = _online_card(om)
+                entry["online"] = True
+                entry["offline"] = False
+                peer = social_peer_card(
+                    self, tid_i, om.get("name") or cached, viewer_id=character_id
+                )
+                if peer is not None and "nearby" in peer:
+                    entry["nearby"] = bool(peer.get("nearby"))
+                out.append(entry)
             else:
-                cached = names.get(tid_i) or names.get(str(tid_i)) or "?"
                 out.append(
                     {
                         "id": tid_i,
-                        "name": str(cached)[:24],
+                        "name": str(cached or "?")[:24],
                         "level": 0,
                         "in_combat": False,
                         "idle": False,
                         "afk": False,
                         "offline": True,
                         "online": False,
+                        "nearby": False,
                     }
                 )
         return out
