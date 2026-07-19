@@ -64,7 +64,7 @@ STARTING_GOLD = os.getenv("STARTING_GOLD", "300")
 # Combat reconnect grace (seconds) — battle kept if player returns in time
 COMBAT_GRACE_SECONDS = float(os.getenv("COMBAT_GRACE_SECONDS", "60"))
 
-VERSION = "0.5.58"
+VERSION = "0.5.61"
 
 # Multiplayer message of the day (shown on /motd and optional join)
 MOTD = os.getenv(

@@ -260,6 +260,24 @@ async def handle_message(
             except Exception:
                 sync_zone = None
         nearby_list = nearby
+        ignores_snap = manager.ignore_list(character_id)
+        lw_id, lw_name = manager.last_whisper_from(character_id)
+        last_whisper = None
+        if lw_id is not None or lw_name:
+            last_whisper = {"id": lw_id, "name": lw_name}
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        you_blob = None
+        if meta is not None:
+            you_blob = {
+                "x": meta["x"],
+                "y": meta["y"],
+                "zone": sync_zone,
+                "session_id": manager.session_id(character_id),
+                "afk": bool(meta.get("afk")),
+                "idle": _idle_chk(meta),
+                "in_combat": bool(meta.get("in_combat")),
+            }
         outbound.append(
             msg(
                 ServerMessageType.WORLD_STATE,
@@ -270,19 +288,14 @@ async def handle_message(
                 nearby_count=len(nearby_list),
                 zones=manager.zone_counts(),
                 roster=manager.online_roster(),
-                you=(
-                    {
-                        "x": meta["x"],
-                        "y": meta["y"],
-                        "zone": sync_zone,
-                    }
-                    if meta
-                    else None
-                ),
+                you=you_blob,
                 repel=manager.repel_remaining(character_id),
                 radiant=manager.radiant_remaining(character_id),
                 zone=sync_zone,
                 session_id=manager.session_id(character_id),
+                # Rehydrate multiplayer soft-state without full reconnect
+                ignores=ignores_snap,
+                last_whisper=last_whisper,
             )
         )
         return character_id, user_id, outbound, None
@@ -378,7 +391,7 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Where am I / zone population (multiplayer social) ---
-    if msg_type in ("zone", "where", "area"):
+    if msg_type in ("zone", "where", "area", "whereami", "coords", "pos", "position"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -489,6 +502,8 @@ async def handle_message(
         "status",
         "me",
         "whoami",
+        "stats",
+        "sheet",
     ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
@@ -563,11 +578,11 @@ async def handle_message(
                     {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
-                    {"cmd": "status", "hint": "F or /status · /me · /whoami — self sheet"},
+                    {"cmd": "status", "hint": "F or /status · /me · /whoami · /stats"},
                     {"cmd": "look", "hint": "L — examine a player (bare = yourself)"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
-                    {"cmd": "zone", "hint": "/zone · /where — area + who is here"},
+                    {"cmd": "zone", "hint": "/zone · /where · /whereami · /coords"},
                     {"cmd": "counts", "hint": "/counts · /census — online + zone totals"},
                     {"cmd": "emote", "hint": "E · /emote wave — nearby emotes"},
                     {"cmd": "rest", "hint": "R — inn quote, R again to stay (town)"},
@@ -1359,6 +1374,8 @@ async def handle_message(
             _reject("blocked", fx, fy)
             return character_id, user_id, outbound, None
 
+        # Capture AFK before allow_move clears it so peers get an idle-clear update
+        was_afk = bool(meta.get("afk"))
         allowed, retry = manager.allow_move(character_id)
         if not allowed:
             outbound.append(
@@ -1389,6 +1406,9 @@ async def handle_message(
             )
         )
         outbound.extend(aoi_msgs)
+        # Multiplayer: walking clears manual AFK — notify AOI + roster
+        if was_afk:
+            await manager.publish_status(character_id, pulse_online=True)
 
         # Multiplayer: soft nearby system note when crossing zone types
         # (town ↔ field ↔ dungeon). Quiet for same-zone steps.
@@ -2158,12 +2178,31 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
+        # quantity: never use `or 1` — qty=0 must not buy one unit
+        if "quantity" in data:
+            raw_qty = data.get("quantity")
+        elif "qty" in data:
+            raw_qty = data.get("qty")
+        else:
+            raw_qty = 1
+        try:
+            if isinstance(raw_qty, bool):
+                raise ValueError("bool qty")
+            buy_qty = int(raw_qty)
+        except (TypeError, ValueError):
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
+        if buy_qty < 1:
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
         async with db_write() as db:
-            ok, reason, bought = await buy_item(db, char, str(item_id or ""))
+            ok, reason, bought = await buy_item(
+                db, char, str(item_id or ""), quantity=buy_qty
+            )
         if not ok:
             # Surface cost when short on gold (mirrors inn not-enough path)
             err = msg(ServerMessageType.ERROR, reason=reason)
@@ -2184,8 +2223,12 @@ async def handle_message(
         inv = await _inventory_msg(character_id)
         if bought:
             inv["bought"] = bought
+            q = int(bought.get("quantity") or 1)
             inv["message"] = (
-                f"Bought {bought.get('item_name') or item_id} for {bought.get('gold_spent', 0)} G"
+                f"Bought {q}× {bought.get('item_name') or item_id} "
+                f"for {bought.get('gold_spent', 0)} G"
+                if q > 1
+                else f"Bought {bought.get('item_name') or item_id} for {bought.get('gold_spent', 0)} G"
             )
         outbound.append(inv)
         return character_id, user_id, outbound, None
@@ -2199,12 +2242,31 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
+        # quantity: never use `or 1` — qty=0 must not sell one unit
+        if "quantity" in data:
+            raw_qty = data.get("quantity")
+        elif "qty" in data:
+            raw_qty = data.get("qty")
+        else:
+            raw_qty = 1
+        try:
+            if isinstance(raw_qty, bool):
+                raise ValueError("bool qty")
+            sell_qty = int(raw_qty)
+        except (TypeError, ValueError):
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
+        if sell_qty < 1:
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
         async with db_write() as db:
-            ok, reason, sold = await sell_item(db, char, str(item_id or ""))
+            ok, reason, sold = await sell_item(
+                db, char, str(item_id or ""), quantity=sell_qty
+            )
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
             return character_id, user_id, outbound, None
@@ -2212,8 +2274,12 @@ async def handle_message(
         # Surface sell result so clients can toast gold earned
         if sold:
             inv["sold"] = sold
+            q = int(sold.get("quantity") or 1)
             inv["message"] = (
-                f"Sold {sold.get('item_name') or item_id} for {sold.get('gold_gained', 0)} G"
+                f"Sold {q}× {sold.get('item_name') or item_id} "
+                f"for {sold.get('gold_gained', 0)} G"
+                if q > 1
+                else f"Sold {sold.get('item_name') or item_id} for {sold.get('gold_gained', 0)} G"
             )
         outbound.append(inv)
         return character_id, user_id, outbound, None

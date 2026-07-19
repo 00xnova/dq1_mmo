@@ -10,12 +10,12 @@ For **people**: players, operators, and human contributors.
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.58-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-260-059669?style=flat-square" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.60-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-269-059669?style=flat-square" />
   <img alt="audience" src="https://img.shields.io/badge/audience-humans-2563eb?style=flat-square" />
 </p>
 
-**Version:** 0.5.58 · **260** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+**Version:** 0.5.60 · **269** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -147,7 +147,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/version** · **/about** | Server version + online count + uptime |
 | **/time** · **/uptime** | Server clock and how long the world has been up |
 | **/motd** · **/rules** | Message of the day |
-| **/afk** · **/away** · **/back** | Show AFK on the roster (clears when you chat or move) |
+| **/afk** · **/away** · **/back** | Show AFK on the roster (clears when you chat, emote, or **walk**) |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
@@ -160,7 +160,8 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/who** | Online / nearby + zone counts (same as **O**) |
 | **/players** | Same as `/who` |
 | **/near** · **/here** | List heroes nearby (view range) |
-| **/zone** · **/where** | Your zone, map position, **who is here**, population by area |
+| **/zone** · **/where** · **/whereami** · **/coords** | Your zone, map position, **who is here**, population by area |
+| **/stats** · **/sheet** | Same as **/status** |
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* · `/players` same as `/who` |
@@ -178,7 +179,7 @@ Your own chat and emotes always appear once in your log (global, nearby, and zon
 Failed whispers (yourself, offline targets, or a dropped connection) do not block the next message you try to send.
 
 **Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.  
-Chatting, whispering, or emoting clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
+Chatting, whispering, emoting, or **walking** clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
 
 Chat tags in the log:
 
@@ -263,7 +264,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 252 passed
+# expect: 269 passed
 ```
 
 ---
@@ -276,7 +277,8 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) **only** | WebSocket protocol, reliability rules, test matrix |
 
 You do **not** need agent docs to play or host.  
-Agents should **not** copy protocol tables into this guide.
+Agents should **not** copy protocol tables into this guide.  
+Live version badges above match `server/config.py` → `VERSION` (**0.5.60** · **269** tests).
 
 | Do | Don’t |
 |:---|:------|

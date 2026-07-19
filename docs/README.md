@@ -3,12 +3,14 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.57** (2026-07-19) · suite green **252** tests · `VERSION` in `server/config.py`  
+**Last docs refresh:** **v0.5.60** (2026-07-19) · suite green **269** tests · `VERSION` in `server/config.py`  
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
 | **Humans** | README · HUMAN · ATTRIBUTION · this map | `AGENTS.md` protocol tables |
 | **Agents / LLMs** | **`AGENTS.md` first** | README / HUMAN as the API |
+
+Keep these trees separate: player docs stay plain language; agent docs own protocol, reliability rules, and the test matrix.
 
 | Rule | |
 |:-----|:--|
@@ -61,9 +63,10 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 - Join welcome may mention nearby heroes
 - Soft reconnect: mute list, last whisper partner, and buffs survive a brief disconnect
 - Failed private messages do not block your next chat line
-- `/version` · `/time` · `/whoami` · bare **L** looks at yourself
-- AFK badge clears when you chat/emote; zone chat only in town/field/dungeon
-- Safer `/roll` dice sizes · discard won’t remove items on quantity 0
+- `/version` · `/time` · `/whoami` · `/motd` · `/afk` · `/quit` · bare **L** looks at yourself
+- AFK badge clears when you chat, emote, or walk; zone chat only in town/field/dungeon
+- Safer `/roll` · discard/sell quantity edge cases
+- Soft reconnect keeps mute list and last whisper partner
 - CC0 pixel art + SVG companions
 
 ---

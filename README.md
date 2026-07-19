@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.57-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.60-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-252_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-269_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -45,12 +45,13 @@
 ---
 
 Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
-Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag · discard), and socialize — global / nearby / zone chat, whispers (unique name prefixes), **`/r`**, **`/find`**, **`/who`** · **`/counts`** · **`/zone`**, **`/roll`**, emotes, and look.
+Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag · discard), and socialize — global / nearby / zone chat, whispers (unique name prefixes), **`/r`**, **`/find`**, **`/who`** · **`/counts`** · **`/zone`**, **`/roll`**, emotes, **`/afk`**, and look.
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
+  <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_drop--in_PNGs-10b981?style=flat-square" />
 </p>
@@ -90,7 +91,7 @@ protocol · tests · not for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.57** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.60** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -106,19 +107,18 @@ protocol · tests · not for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.57-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-252_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.60-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-269_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.57** |
+| | **v0.5.60** |
 |:--|:--|
-| 💤 | Chatting or emoting **clears your AFK** badge for nearby heroes |
-| 🗺️ | **Zone chat** only works in town / field / dungeon (not on walls or water) |
-| 👀 | Looking up someone who is offline says so clearly |
-| ℹ️ | **`/version`** · **`/time`** · **`/whoami`** · bare **L** looks at yourself |
-| 🎲 | Safer **`/roll`** (bad dice sizes rejected) · discard won’t eat items on qty 0 |
-| ✅ | **252** automated tests |
+| 💤 | **Walking** clears your AFK badge for other players (not only chat) |
+| 🔄 | Soft reconnect keeps mute list, **`/r`** partner, and buffs; resync restores social state |
+| 📣 | **`/motd`** · **`/afk`** · **`/back`** · **`/block`** · **`/quit`** for multiplayer life |
+| 🛒 | Safer **sell** quantities (qty 0 no longer sells one item by mistake) |
+| ✅ | **269** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -127,15 +127,13 @@ protocol · tests · not for players
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.56** | Roll sides & discard quantity edge-case fixes |
-| **0.5.55** | `/version` · `/time` · `/whoami` · bare look = self |
-| **0.5.54** | Soft reconnect: mute list · `/r` partner · buffs · safer whispers |
-| **0.5.53** | Look always shows zone · empty chat does not block next line |
-| **0.5.52** | Whisper / look / ignore **unique name prefixes** |
-| **0.5.51** | Inn: **R** quotes cost, **R again** to rest |
-| **0.5.50** | `/counts` · victory/flee/defeat notices · idle leave |
-| **0.5.48–49** | `/roll` · discard (**D**) · bag used/max |
-| **0.5.40–47** | Zone social · bag limits · presence · open art |
+| **0.5.59** | Sell quantity edge-case fix · multi-sell stacks |
+| **0.5.58** | MOTD · AFK/back · block aliases · graceful quit |
+| **0.5.57** | Zone-chat rules · offline look · AFK clear on chat |
+| **0.5.55–56** | `/version` · `/time` · `/whoami` · safer roll/discard |
+| **0.5.54** | Soft reconnect: mute list · `/r` · buffs · safer whispers |
+| **0.5.50–53** | `/counts` · combat notices · look zone · name prefixes |
+| **0.5.40–49** | Zone social · bag limits · discard · open art |
 
 </details>
 
@@ -171,7 +169,7 @@ protocol · tests · not for players
 |:--|:--|
 | 💬 | Global · nearby · **zone** · whisper (prefix) · **`/r`** · emotes · **`/roll`** |
 | 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/version`** · look |
-| 🔄 | Soft reconnect — mute list · **`/r`** · buffs · AFK clears when you talk |
+| 🔄 | Soft reconnect — mute list · **`/r`** · buffs · AFK clears when you talk or walk |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -185,7 +183,7 @@ protocol · tests · not for players
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · your position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · presence repair · **252** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · presence repair · **269** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players start with this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -234,7 +232,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 252 passed
+# expect: 269 passed
 ```
 
 ---
@@ -263,6 +261,8 @@ python tests/run_tests.py
 | **/status** · **/me** · **/whoami** · **F** | Status sheet |
 | **/version** · **/about** | Server version + uptime |
 | **/time** · **/uptime** | Server clock + uptime |
+| **/motd** · **/afk** · **/back** · **/quit** | Welcome · AFK · leave world |
+| **/block** · **/unblock** | Same as ignore / unignore |
 | **/ignore** · **/unignore** · **/ignores** | Mute list |
 | **/r message** | Reply last whisper |
 | **/inn** · **/rest** | Inn cost quote |
@@ -332,6 +332,8 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/find Name` · `/find zone:field` | Search (zone type only, no coords) |
 | `/who` · `/players` · `/near` · `/zone` | Rosters & area info |
 | `/version` · `/about` · `/time` · `/whoami` | Server info · self sheet alias |
+| `/motd` · `/afk` · `/back` · `/quit` | Welcome blurb · AFK badge · leave world |
+| `/block` · `/unblock` | Same as ignore / unignore |
 | `/ignore` · `/unignore` · `/ignores` | Mute list |
 | `/r message` | Reply last whisper |
 | `/inn` · `/rest` | Inn cost quote |
@@ -421,7 +423,7 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-252_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-269_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -494,8 +496,8 @@ Agents → AGENTS.md ONLY
 ---
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.57-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/252_tests-059669?style=flat-square" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.60-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/269_tests-059669?style=flat-square" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=flat-square" />
 </p>
 

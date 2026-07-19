@@ -284,29 +284,44 @@ async def unequip_item(db, character: dict, slot: str) -> tuple[bool, str]:
     return True, "ok"
 
 
-async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
-    """Buy one shop item. Returns (ok, reason, info) with gold_spent on success."""
+async def buy_item(
+    db, character: dict, item_id: str, quantity: int = 1
+) -> tuple[bool, str, dict]:
+    """Buy shop item(s). Returns (ok, reason, info) with gold_spent on success.
+
+    quantity must be >= 1 (qty=0 must never silently buy one).
+    """
+    try:
+        qty = int(quantity)
+    except (TypeError, ValueError):
+        return False, "bad quantity", {}
+    if qty < 1:
+        return False, "bad quantity", {}
+    if qty > MAX_STACK_QTY:
+        qty = MAX_STACK_QTY
+
     defn = get_item_def(item_id)
     if not defn:
         return False, "unknown item", {}
-    price = int(defn.get("price", 0))
-    if price <= 0:
+    unit_price = int(defn.get("price", 0))
+    if unit_price <= 0:
         return False, "not for sale", {}
     shop_ids = set(load_data().get("shop") or [])
     if item_id not in shop_ids:
         return False, "not in shop", {}
+    price = unit_price * qty
     gold = _safe_gold(character)
     if gold < price:
-        return False, "not enough gold", {"cost": price, "gold": gold}
-    can, reason = await can_receive_item(db, character["id"], item_id, 1)
+        return False, "not enough gold", {"cost": price, "gold": gold, "quantity": qty}
+    can, reason = await can_receive_item(db, character["id"], item_id, qty)
     if not can:
-        return False, reason, {"gold": gold}
+        return False, reason, {"gold": gold, "quantity": qty}
     gold -= price
     await db.execute(
         "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (str(gold), character["id"]),
     )
-    if not await add_item(db, character["id"], item_id, 1):
+    if not await add_item(db, character["id"], item_id, qty):
         # Extremely unlikely race — refund gold
         gold += price
         await db.execute(
@@ -325,17 +340,32 @@ async def buy_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
             "gold_spent": price,
             "item_id": item_id,
             "item_name": defn.get("name") or item_id,
+            "quantity": qty,
             "gold": str(gold),
         },
     )
 
 
-async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]:
-    """Sell one item. Returns (ok, reason, info) with gold_gained on success."""
+async def sell_item(
+    db, character: dict, item_id: str, quantity: int = 1
+) -> tuple[bool, str, dict]:
+    """Sell bag stack units (or one equipped piece). Returns (ok, reason, info).
+
+    quantity must be >= 1. Equipped gear only supports quantity 1.
+    """
+    try:
+        qty = int(quantity)
+    except (TypeError, ValueError):
+        return False, "bad quantity", {}
+    if qty < 1:
+        return False, "bad quantity", {}
+    if qty > MAX_STACK_QTY:
+        qty = MAX_STACK_QTY
+
     defn = get_item_def(item_id)
     if not defn:
         return False, "unknown item", {}
-    price = int(defn.get("price", 0)) // 2
+    unit_price = int(defn.get("price", 0)) // 2
 
     # Equipped gear lives on the character row, not in bag stacks — allow sell
     # by clearing the slot (players should not need a separate unequip first).
@@ -346,18 +376,24 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]
             break
 
     if equipped_col is not None:
+        if qty != 1:
+            return False, "bad quantity", {}
         await db.execute(
             f"UPDATE characters SET {equipped_col} = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
             (character["id"],),
         )
         character[equipped_col] = None
-    elif not await remove_item(db, character["id"], item_id, 1):
-        return False, "not in inventory", {}
+        sold_qty = 1
+    else:
+        if not await remove_item(db, character["id"], item_id, qty):
+            return False, "not in inventory", {}
+        sold_qty = qty
 
+    gained = unit_price * sold_qty
     try:
-        gold = max(0, int(str(character.get("gold", "0") or "0"))) + price
+        gold = max(0, int(str(character.get("gold", "0") or "0"))) + gained
     except (TypeError, ValueError):
-        gold = price
+        gold = gained
     await db.execute(
         "UPDATE characters SET gold = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
         (str(gold), character["id"]),
@@ -368,9 +404,10 @@ async def sell_item(db, character: dict, item_id: str) -> tuple[bool, str, dict]
         True,
         "ok",
         {
-            "gold_gained": price,
+            "gold_gained": gained,
             "item_id": item_id,
             "item_name": defn.get("name") or item_id,
+            "quantity": sold_qty,
             "gold": str(gold),
         },
     )

@@ -20,7 +20,7 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.58` (`server/config.py` → `VERSION`) · **260** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.61` (`server/config.py` → `VERSION`) · **275** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -271,6 +271,11 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 100. `motd` / `rules` → MOTD text + version/online/zones/uptime (`config.MOTD`).
 101. `afk`/`away` sets `meta.afk`; `back` clears; `_is_idle` true when afk; chat/move clears afk.
 102. `block`/`unblock` aliases for ignore/unignore; `quit`/`logout` ack then `disconnect(reason=quit)`.
+103. `sell` quantity: never ignore client qty — `qty<1` → `bad quantity`; supports multi-stack sell (equipped still qty 1 only).
+104. Successful move after manual AFK → `publish_status` so AOI peers drop idle badge.
+105. `sync` world_state rehydrates `ignores`, `last_whisper`, and `you.{afk,idle,session_id,in_combat}`.
+106. `buy` quantity: never ignore client qty — `qty<1` → `bad quantity`; multi-buy supported (stack cap).
+107. Zone aliases: `whereami`/`coords`/`pos`/`position`; status aliases: `stats`/`sheet`.
 
 ## Tests (mandatory for your changes)
 
@@ -329,6 +334,9 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_adversarial_v0556` | roll sides=0 not d100; invalid sides; discard qty=0 no burn |
 | `tests.test_mp_reliability_v0557` | look offline reason; roster session_id; idle clear on chat; zone gate; emote zone |
 | `tests.test_features_v0558` | motd; afk/back; block alias; quit leave; help cmds; chat clears afk |
+| `tests.test_adversarial_v0559` | sell qty=0/− not sell; multi-sell; bool qty rejected |
+| `tests.test_mp_reliability_v0560` | move clears AFK for peers; sync rehydrates ignores/last_whisper |
+| `tests.test_features_v0561` | buy qty=0; multi-buy; whereami/coords; stats/sheet aliases |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |
