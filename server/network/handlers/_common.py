@@ -277,3 +277,67 @@ async def private_social_delivery(
         outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
         return False
     return True
+
+
+def social_peer_card(
+    manager_obj: Any,
+    pid: int | None,
+    pname: str | None,
+    *,
+    viewer_id: int | None = None,
+) -> dict[str, Any] | None:
+    """Public social peer card (no coords). Optional nearby vs viewer for meetup.
+
+    Online cards may include zone / afk / in_combat / session_id / afk_message.
+    When ``viewer_id`` is set and the peer is online, sets ``nearby`` (AOI) without
+    leaking map coordinates — helps /pending · /lastinvite · /lastemote meetup.
+    """
+    if pid is None:
+        return None
+    from network.websocket_manager import _zone_of
+
+    online = manager_obj.is_online(pid)
+    pmeta = manager_obj.get_meta(pid) if online else None
+    card: dict[str, Any] = {
+        "id": pid,
+        "name": pname or (pmeta or {}).get("name") or "Hero",
+        "online": online,
+        "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
+    }
+    if pmeta is not None:
+        psid = pmeta.get("session_id")
+        if psid is not None:
+            card["session_id"] = psid
+        z = _zone_of(pmeta)
+        if isinstance(z, str) and z:
+            card["zone"] = z
+        if pmeta.get("in_combat"):
+            card["in_combat"] = True
+        if card["afk"]:
+            pam = pmeta.get("afk_message")
+            if isinstance(pam, str) and pam.strip():
+                card["afk_message"] = pam.strip()[:48]
+        if viewer_id is not None and online:
+            try:
+                card["nearby"] = pid in manager_obj.ids_nearby(viewer_id)
+            except Exception:
+                card["nearby"] = False
+    return card
+
+
+def peer_status_suffix(card: dict[str, Any] | None) -> str:
+    """Human badge suffix: offline, or [zone,afk,fight,near|far]."""
+    if not card:
+        return ""
+    if not card.get("online"):
+        return " (offline)"
+    bits: list[str] = []
+    if card.get("zone"):
+        bits.append(str(card["zone"]))
+    if card.get("afk"):
+        bits.append("afk")
+    if card.get("in_combat"):
+        bits.append("fight")
+    if "nearby" in card:
+        bits.append("near" if card.get("nearby") else "far")
+    return f" [{','.join(bits)}]" if bits else " (online)"

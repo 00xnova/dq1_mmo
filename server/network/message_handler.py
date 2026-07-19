@@ -46,8 +46,10 @@ from network.handlers._common import (  # noqa: F401 — re-export for tests
     _resolve_item_arg,
     _resolve_social_peer,
     _social_alias,
+    peer_status_suffix,
     private_social_delivery,
     sanitize_chat,
+    social_peer_card,
 )
 from network.protocol import ClientMessageType, ServerMessageType, msg
 from network.websocket_manager import CHAT_MAX_LEN, manager
@@ -1074,70 +1076,31 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
 
-        def _peer_blob(pid: int | None, pname: str | None) -> dict | None:
-            if pid is None:
-                return None
-            online = manager.is_online(pid)
-            pmeta = manager.get_meta(pid) if online else None
-            card = {
-                "id": pid,
-                "name": pname or (pmeta or {}).get("name") or "Hero",
-                "online": online,
-                "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
-            }
-            if pmeta is not None:
-                from network.websocket_manager import _zone_of
-
-                psid = pmeta.get("session_id")
-                if psid is not None:
-                    card["session_id"] = psid
-                # Zone / combat help meetup reliability without leaking coords
-                z = _zone_of(pmeta)
-                if isinstance(z, str) and z:
-                    card["zone"] = z
-                if pmeta.get("in_combat"):
-                    card["in_combat"] = True
-                if card["afk"]:
-                    pam = pmeta.get("afk_message")
-                    if isinstance(pam, str) and pam.strip():
-                        card["afk_message"] = pam.strip()[:48]
-            return card
-
-        def _peer_status_suffix(blob: dict | None) -> str:
-            if not blob:
-                return ""
-            if not blob.get("online"):
-                return " (off)"
-            bits_s: list[str] = []
-            if blob.get("zone"):
-                bits_s.append(str(blob["zone"]))
-            if blob.get("afk"):
-                bits_s.append("afk")
-            if blob.get("in_combat"):
-                bits_s.append("fight")
-            return (" [" + ",".join(bits_s) + "]") if bits_s else " ✓"
-
         w_id, w_name = manager.last_whisper_from(character_id)
         i_from_id, i_from_name = manager.last_invite_from(character_id)
         i_to_id, i_to_name = manager.last_invite_to(character_id)
         e_id, e_name = manager.last_emote_to(character_id)
-        whisper = _peer_blob(w_id, w_name)
-        invite_from = _peer_blob(i_from_id, i_from_name)
-        invite_to = _peer_blob(i_to_id, i_to_name)
-        emote = _peer_blob(e_id, e_name)
+        whisper = social_peer_card(manager, w_id, w_name, viewer_id=character_id)
+        invite_from = social_peer_card(
+            manager, i_from_id, i_from_name, viewer_id=character_id
+        )
+        invite_to = social_peer_card(
+            manager, i_to_id, i_to_name, viewer_id=character_id
+        )
+        emote = social_peer_card(manager, e_id, e_name, viewer_id=character_id)
         bits: list[str] = []
         if whisper:
-            bits.append(f"/r → {whisper['name']}" + _peer_status_suffix(whisper))
+            bits.append(f"/r → {whisper['name']}" + peer_status_suffix(whisper))
         if invite_from:
             bits.append(
-                f"invite from {invite_from['name']}" + _peer_status_suffix(invite_from)
+                f"invite from {invite_from['name']}" + peer_status_suffix(invite_from)
             )
         if invite_to:
             bits.append(
-                f"invite to {invite_to['name']}" + _peer_status_suffix(invite_to)
+                f"invite to {invite_to['name']}" + peer_status_suffix(invite_to)
             )
         if emote:
-            bits.append(f"emote → {emote['name']}" + _peer_status_suffix(emote))
+            bits.append(f"emote → {emote['name']}" + peer_status_suffix(emote))
         outbound.append(
             msg(
                 "social",
@@ -1160,47 +1123,10 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         lid, lname = manager.last_emote_to(character_id)
-        peer = None
-        online = False
-        peer_afk = False
-        if lid is not None:
-            from network.websocket_manager import _zone_of
-
-            online = manager.is_online(lid)
-            pmeta = manager.get_meta(lid) if online else None
-            peer_afk = bool(pmeta.get("afk")) if pmeta else False
-            peer = {
-                "id": lid,
-                "name": lname or (pmeta or {}).get("name"),
-                "online": online,
-                "afk": peer_afk,
-            }
-            if pmeta is not None:
-                psid = pmeta.get("session_id")
-                if psid is not None:
-                    peer["session_id"] = psid
-                z = _zone_of(pmeta)
-                if isinstance(z, str) and z:
-                    peer["zone"] = z
-                if pmeta.get("in_combat"):
-                    peer["in_combat"] = True
-                if peer_afk:
-                    pam = pmeta.get("afk_message")
-                    if isinstance(pam, str) and pam.strip():
-                        peer["afk_message"] = pam.strip()[:48]
+        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
+        online = bool(peer and peer.get("online"))
         if peer:
-            if not online:
-                le_status = " (offline)"
-            else:
-                bits_le: list[str] = []
-                if peer.get("zone"):
-                    bits_le.append(str(peer["zone"]))
-                if peer_afk:
-                    bits_le.append("afk")
-                if peer.get("in_combat"):
-                    bits_le.append("fight")
-                le_status = f" [{','.join(bits_le)}]" if bits_le else " (online)"
-            le_msg = f"Last emote: {peer['name']}{le_status}"
+            le_msg = f"Last emote: {peer['name']}{peer_status_suffix(peer)}"
         else:
             le_msg = "No directed emote target yet."
         outbound.append(
@@ -1987,49 +1913,10 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         lid, lname = manager.last_invite_from(character_id)
-        peer = None
-        online = False
-        peer_afk = False
-        if lid is not None:
-            from network.websocket_manager import _zone_of
-
-            online = manager.is_online(lid)
-            pmeta = manager.get_meta(lid) if online else None
-            peer_afk = bool(pmeta.get("afk")) if pmeta else False
-            peer = {
-                "id": lid,
-                "name": lname or (pmeta or {}).get("name"),
-                "online": online,
-                "afk": peer_afk,
-            }
-            if pmeta is not None:
-                psid = pmeta.get("session_id")
-                if psid is not None:
-                    peer["session_id"] = psid
-                z = _zone_of(pmeta)
-                if isinstance(z, str) and z:
-                    peer["zone"] = z
-                if pmeta.get("in_combat"):
-                    peer["in_combat"] = True
-                if peer_afk:
-                    pam = pmeta.get("afk_message")
-                    if isinstance(pam, str) and pam.strip():
-                        peer["afk_message"] = pam.strip()[:48]
+        peer = social_peer_card(manager, lid, lname, viewer_id=character_id)
+        online = bool(peer and peer.get("online"))
         if peer:
-            status_bits: list[str] = []
-            if not online:
-                status = " (offline)"
-            else:
-                if peer.get("zone"):
-                    status_bits.append(str(peer["zone"]))
-                if peer_afk:
-                    status_bits.append("afk")
-                if peer.get("in_combat"):
-                    status_bits.append("fight")
-                status = (
-                    f" [{','.join(status_bits)}]" if status_bits else " (online)"
-                )
-            li_msg = f"Last invite from: {peer['name']}{status}"
+            li_msg = f"Last invite from: {peer['name']}{peer_status_suffix(peer)}"
         else:
             li_msg = "No meetup invite yet."
         outbound.append(
@@ -2049,57 +1936,19 @@ async def handle_message(
             return character_id, user_id, outbound, None
         manager.touch(character_id)
 
-        def _peer_card(pid: int | None, pname: str | None) -> dict | None:
-            if pid is None:
-                return None
-            from network.websocket_manager import _zone_of
-
-            online = manager.is_online(pid)
-            pmeta = manager.get_meta(pid) if online else None
-            card = {
-                "id": pid,
-                "name": pname or (pmeta or {}).get("name") or "Hero",
-                "online": online,
-                "afk": bool((pmeta or {}).get("afk")) if pmeta else False,
-            }
-            if pmeta is not None:
-                psid = pmeta.get("session_id")
-                if psid is not None:
-                    card["session_id"] = psid
-                z = _zone_of(pmeta)
-                if isinstance(z, str) and z:
-                    card["zone"] = z
-                if pmeta.get("in_combat"):
-                    card["in_combat"] = True
-                if card["afk"]:
-                    pam = pmeta.get("afk_message")
-                    if isinstance(pam, str) and pam.strip():
-                        card["afk_message"] = pam.strip()[:48]
-            return card
-
-        def _pending_suffix(blob: dict | None) -> str:
-            if not blob:
-                return ""
-            if not blob.get("online"):
-                return " (offline)"
-            bits_s: list[str] = []
-            if blob.get("zone"):
-                bits_s.append(str(blob["zone"]))
-            if blob.get("afk"):
-                bits_s.append("afk")
-            if blob.get("in_combat"):
-                bits_s.append("fight")
-            return f" [{','.join(bits_s)}]" if bits_s else " (online)"
-
         from_id, from_name = manager.last_invite_from(character_id)
         to_id, to_name = manager.last_invite_to(character_id)
-        incoming = _peer_card(from_id, from_name)
-        outgoing = _peer_card(to_id, to_name)
+        incoming = social_peer_card(
+            manager, from_id, from_name, viewer_id=character_id
+        )
+        outgoing = social_peer_card(
+            manager, to_id, to_name, viewer_id=character_id
+        )
         bits: list[str] = []
         if incoming:
-            bits.append(f"from {incoming['name']}" + _pending_suffix(incoming))
+            bits.append(f"from {incoming['name']}" + peer_status_suffix(incoming))
         if outgoing:
-            bits.append(f"to {outgoing['name']}" + _pending_suffix(outgoing))
+            bits.append(f"to {outgoing['name']}" + peer_status_suffix(outgoing))
         if bits:
             message = "Pending meetup · " + " · ".join(bits)
         else:
@@ -3670,13 +3519,14 @@ async def handle_message(
             if isinstance(am, str) and am.strip():
                 target_afk_msg = am.strip()[:48]
         # Deliver to target; fail closed if socket is dead (don't echo a lie)
-        delivered = await manager.send(target_id, whisper_msg)
-        if not delivered:
-            # Don't punish sender for multiplayer delivery races
-            manager.refund_chat(
-                character_id, restore_afk=was_afk, afk_message=afk_msg_snap
-            )
-            outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+        if not await private_social_delivery(
+            character_id,
+            target_id,
+            whisper_msg,
+            was_afk=was_afk,
+            afk_message=afk_msg_snap,
+            outbound=outbound,
+        ):
             return character_id, user_id, outbound, None
         # Sender echo may note AFK so UI can show "they may not reply"
         echo = dict(whisper_msg)
@@ -3827,12 +3677,14 @@ async def handle_message(
                 amw = tmeta.get("afk_message")
                 if isinstance(amw, str) and amw.strip():
                     target_afk_msg_w = amw.strip()[:48]
-            delivered = await manager.send(target_id, whisper_msg)
-            if not delivered:
-                manager.refund_chat(
-                    character_id, restore_afk=was_afk_w, afk_message=afk_msg_w
-                )
-                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+            if not await private_social_delivery(
+                character_id,
+                target_id,
+                whisper_msg,
+                was_afk=was_afk_w,
+                afk_message=afk_msg_w,
+                outbound=outbound,
+            ):
                 return character_id, user_id, outbound, None
             echo_w = dict(whisper_msg)
             if target_afk_w:
