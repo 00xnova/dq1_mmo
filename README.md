@@ -19,7 +19,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.120</b> · <b>617</b> tests green · meetup · <code>@share</code>/<code>@from</code> · <code>@emote</code>/<code>@emotedby</code> · soft reconnect · shop · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.120</b> · <b>617</b> tests green · soft reconnect (share · emote · invite) · meetup · shop · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -68,14 +68,14 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · two-way <code>@share</code>/<code>@from</code> · two-way <code>@emote</code>/<code>@emotedby</code> · soft reconnect · AFK.
+  Server-side 1v1 · shop · whisper · meetup · two-way social memory · <b>soft reconnect</b> restores share · wave · invite · AFK.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
   <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote_·_@emotedby-8b5cf6?style=flat-square" />
-  <img alt="mp" src="https://img.shields.io/badge/multiplayer-soft_reconnect_·_AFK-06b6d4?style=flat-square" />
+  <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-share_·_emote_·_invite-06b6d4?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge/shop-friendly_names-eab308?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel_/return-a855f7?style=flat-square" />
   <img alt="afk" src="https://img.shields.io/badge/AFK-/busy_lunch-f97316?style=flat-square" />
@@ -210,43 +210,59 @@ flowchart LR
 
 <table>
 <tr>
-<td width="50%" valign="top" align="center">
+<td width="33%" valign="top" align="center">
 
-### 📍 Share shortcuts
+### 📍 Share
 | Alias | Means |
 |:------|:------|
-| **`@share`** | who *you* last shared with |
-| **`@from`** | who last shared *with you* |
+| **`@share`** | who *you* shared with |
+| **`@from`** | who shared *with you* |
 
-<sub>Always type the **`@`**</sub>
+<sub>**`/lastshare`**</sub>
 
 </td>
-<td width="50%" valign="top" align="center">
+<td width="33%" valign="top" align="center">
 
-### 👋 Wave shortcuts
+### 👋 Wave
 | Alias | Means |
 |:------|:------|
-| **`@emote`** | who *you* last waved at |
-| **`@emotedby`** | who last waved *at you* |
+| **`@emote`** | who *you* waved at |
+| **`@emotedby`** | who waved *at you* |
 
-<sub>**`/lastemote`** shows both sides</sub>
+<sub>**`/lastemote`**</sub>
+
+</td>
+<td width="33%" valign="top" align="center">
+
+### 🤝 Meetup
+| Command | Means |
+|:--------|:------|
+| **`/invite`** | private meetup ping |
+| **`/pending`** | open invites |
+
+<sub>**`/lastinvite`** · **`@pending`**</sub>
 
 </td>
 </tr>
 </table>
 
+<p align="center">
+  <img alt="at" src="https://img.shields.io/badge/aliases-always_type_@-6366f1?style=for-the-badge" />
+  <img alt="survive" src="https://img.shields.io/badge/all_three-survive_soft_reconnect-06b6d4?style=for-the-badge" />
+</p>
+
 ```mermaid
-flowchart LR
-  subgraph wave ["Two-way waves"]
-    W1["/wave Hero"] --> W2["They: /w @emotedby"]
-    W1 --> W3["You: /lastemote · /w @emote"]
+flowchart TB
+  subgraph play ["While online"]
+    W["/wave · /share · /invite"] --> M[Social memory]
   end
-  subgraph share ["Two-way share"]
-    S1["/share Hero"] --> S2["They: /thank @from"]
-    S1 --> S3["You: /thank @share"]
+  subgraph drop ["Brief disconnect ~1 min"]
+    M --> S[Soft reconnect bag]
   end
-  wave --> Meet[Keep meeting up]
-  share --> Meet
+  subgraph back ["You rejoin"]
+    S --> R[Welcome may list Restored]
+    R --> A["@emote · @share · /pending still work"]
+  end
 ```
 
 > [!TIP]
@@ -428,7 +444,7 @@ flowchart TB
 | **Client** | What you see and press — movement prediction, combat menus, chat |
 | **Server** | Truth for fights, gold, position, who is online |
 | **SQLite** | Heroes, inventory, accounts (local-first) |
-| **Soft reconnect** | Brief disconnects keep mute list, last whisper partner, share/emote partners, buffs when possible |
+| **Soft reconnect** | Brief disconnects keep mute list, last whisper, **share · emote · invite** partners, and buffs when possible |
 
 <p align="center">
   <img alt="authority" src="https://img.shields.io/badge/authority-server_wins-f43f5e?style=for-the-badge" />

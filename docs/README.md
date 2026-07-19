@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.120** (2026-07-19) · suite **617** tests · soft reconnect share+emote+invite peers · human alias cheat sheet
+**Last docs refresh:** **v0.5.120** (2026-07-19) · suite **617** tests · soft reconnect share+emote+invite · README reconnect diagram · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
