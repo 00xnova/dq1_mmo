@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.133-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-688-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.134-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-694-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.133 · **688** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.134 · **694** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.133):** **`/stuck`** / **`/home`** confirm with online and nearby counts · **`/quit`** farewell may note your zone · AFK confirms still carry room context · **688** tests.
+**Recent for players/ops (v0.5.134):** **`/find`** answers with a plain summary (how many matched · online) · stuck/home/quit and AFK still carry room context · **694** tests.
 
 > [!TIP]
 > **Step away cleanly:** **`/afk lunch`** or **`/busy meeting`** · nearby heroes may see a system line · **`/back`** when you return. Confirms mention zone and nearby counts.  
@@ -183,7 +183,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/afk** · **/away** · **/busy** · **/back** | Show AFK on the roster. Optional reason: **`/afk lunch`** or **`/busy lunch`** (nearby heroes may see it; looks & whispers can show the tip). Confirmations note zone · nearby · online. Clears when you chat, emote, **walk**, or shop/use items |
 | **/block Name** · **/unblock Name** | Same as ignore / unignore |
 | **/quit** · **/logout** | Leave the world gracefully (farewell may note your zone) |
-| **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
+| **/find Name** | Search who’s online by name prefix (zone type only — no positions) · plain summary + online census |
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
 | **/find afk** · **/find afk:yes** | List heroes marked AFK (combine with `zone:…`) |
@@ -327,7 +327,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 688 passed
+# expect: 694 passed
 ```
 
 ---
@@ -341,7 +341,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.133** · **688** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.134** · **694** tests).
 
 | Do | Don’t |
 |:---|:------|
