@@ -7,6 +7,7 @@ from typing import Any
 
 from game import formulas as F
 from game.data_loader import battle_spells_at, get_enemy, get_spell
+from game.item_manager import equipment_bonuses
 from game.progression import apply_xp, gold_add
 from game.rng import Rng
 
@@ -48,9 +49,11 @@ class Battle:
     def _hero_from_character(c: dict) -> dict:
         strength = int(c.get("strength", 4))
         agility = int(c.get("agility", 4))
-        weapon = int(c.get("weapon_power", 0) or 0)
-        armor = int(c.get("armor_power", 0) or 0)
-        shield = int(c.get("shield_power", 0) or 0)
+        bonuses = equipment_bonuses(c)
+        weapon = int(c.get("weapon_power", bonuses["weapon_power"]) or 0)
+        armor = int(c.get("armor_power", bonuses["armor_power"]) or 0)
+        shield = int(c.get("shield_power", bonuses["shield_power"]) or 0)
+        accessory = int(c.get("accessory_power", bonuses["accessory_power"]) or 0)
         level = int(c.get("level", 1))
         known = c.get("known_spells") or battle_spells_at(level)
         return {
@@ -66,7 +69,7 @@ class Battle:
             "mp": int(c.get("current_mp", c.get("max_mp", 0))),
             "gold": str(c.get("gold", "0")),
             "attack_power": F.hero_attack_power(strength, weapon),
-            "defense_power": F.hero_defense_power(agility, armor, shield, 0),
+            "defense_power": F.hero_defense_power(agility, armor, shield, accessory),
             "known_spells": list(known),
             "status": {"sleep": False, "stopspell": False},
             "total_kills": int(c.get("total_kills", 0)),

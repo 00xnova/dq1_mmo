@@ -10,6 +10,10 @@ class ClientMessageType(StrEnum):
     USE_SPELL = "use_spell"
     EQUIP = "equip"
     UNEQUIP = "unequip"
+    BUY = "buy"
+    SELL = "sell"
+    SHOP = "shop"
+    INVENTORY = "inventory"
     PING = "ping"
 
 
@@ -25,6 +29,7 @@ class ServerMessageType(StrEnum):
     COMBAT_END = "combat_end"
     LEVEL_UP = "level_up"
     INVENTORY_UPDATE = "inventory_update"
+    SHOP_LIST = "shop_list"
     ERROR = "error"
     PONG = "pong"
 

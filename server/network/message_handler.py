@@ -5,11 +5,31 @@ from database.db import get_db
 from game.combat_engine import combat_engine
 from game.data_loader import battle_spells_at
 from game.enemy_spawner import roll_encounter
+from game.item_manager import (
+    buy_item,
+    character_public,
+    equip_item,
+    equipment_bonuses,
+    list_items,
+    sell_item,
+    shop_catalog,
+    unequip_item,
+)
 from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
-from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload
+from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload, zone_at
 from network.protocol import ClientMessageType, ServerMessageType, msg
 from network.websocket_manager import manager
+
+
+async def _inventory_msg(character_id: int) -> dict:
+    db = await get_db()
+    char = await get_character(character_id)
+    items = await list_items(db, character_id)
+    if char:
+        char["known_spells"] = battle_spells_at(int(char["level"]))
+        char = character_public(char, items)
+    return msg(ServerMessageType.INVENTORY_UPDATE, items=items, character=char)
 
 
 def _combat_update(battle, events: list | None = None) -> dict:
@@ -93,6 +113,7 @@ async def handle_message(
             character["world_y"] = y
 
         character["known_spells"] = battle_spells_at(int(character["level"]))
+        character["bonuses"] = equipment_bonuses(character)
 
         connect_meta = {
             "character_id": character["id"],
@@ -250,6 +271,84 @@ async def handle_message(
                 )
                 outbound.append(_combat_update(battle, start_events))
 
+        return character_id, user_id, outbound, None
+
+    # --- Inventory / shop / equip ---
+    if msg_type == ClientMessageType.INVENTORY:
+        outbound.append(await _inventory_msg(character_id))
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.SHOP:
+        outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.EQUIP:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        slot = data.get("slot")
+        item_id = data.get("item") or data.get("item_id")
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        db = await get_db()
+        ok, reason = await equip_item(db, char, str(slot or ""), str(item_id or ""))
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+        outbound.append(await _inventory_msg(character_id))
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.UNEQUIP:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        slot = data.get("slot")
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        db = await get_db()
+        ok, reason = await unequip_item(db, char, str(slot or ""))
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+        outbound.append(await _inventory_msg(character_id))
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.BUY:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        if meta and zone_at(int(meta["x"]), int(meta["y"])) != "town":
+            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
+            return character_id, user_id, outbound, None
+        item_id = data.get("item") or data.get("item_id")
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        db = await get_db()
+        ok, reason = await buy_item(db, char, str(item_id or ""))
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+        outbound.append(await _inventory_msg(character_id))
+        return character_id, user_id, outbound, None
+
+    if msg_type == ClientMessageType.SELL:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+        item_id = data.get("item") or data.get("item_id")
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        db = await get_db()
+        ok, reason = await sell_item(db, char, str(item_id or ""))
+        if not ok:
+            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
+        outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
     # Debug/test: force encounter

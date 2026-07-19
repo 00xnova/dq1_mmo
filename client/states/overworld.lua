@@ -165,29 +165,46 @@ function Overworld:draw()
   local p = World.local_player
   local c = Session.character
   if p then
-    local hp = c and c.current_hp or "?"
-    local mhp = c and c.max_hp or "?"
+    local hp = tonumber(c and c.current_hp) or 0
+    local mhp = math.max(1, tonumber(c and c.max_hp) or 1)
+    local mp = tonumber(c and c.current_mp) or 0
+    local mmp = math.max(0, tonumber(c and c.max_mp) or 0)
     love.graphics.print(
       string.format(
-        "%s  Lv%d  HP %s/%s  (%d,%d)  [%s]",
+        "%s  Lv%d  (%d,%d)  [%s]  G %s",
         p.name,
         (c and c.level) or p.level or 1,
-        tostring(hp),
-        tostring(mhp),
         p.x,
         p.y,
-        self.zone
+        self.zone,
+        tostring(c and c.gold or "0")
       ),
       16,
       36
     )
+    -- HP bar
+    love.graphics.setColor(0.2, 0.2, 0.25)
+    love.graphics.rectangle("fill", 16, 58, 160, 12)
+    love.graphics.setColor(0.8, 0.2, 0.25)
+    love.graphics.rectangle("fill", 16, 58, 160 * math.min(1, hp / mhp), 12)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(string.format("HP %d/%d", hp, mhp), 20, 56)
+    if mmp > 0 then
+      love.graphics.setColor(0.2, 0.2, 0.25)
+      love.graphics.rectangle("fill", 16, 74, 160, 10)
+      love.graphics.setColor(0.25, 0.45, 0.9)
+      love.graphics.rectangle("fill", 16, 74, 160 * math.min(1, mp / mmp), 10)
+      love.graphics.setColor(1, 1, 1)
+      love.graphics.print(string.format("MP %d/%d", mp, mmp), 20, 72)
+    end
   end
   local others = 0
   for _ in pairs(World.players) do
     others = others + 1
   end
-  love.graphics.print(self.status .. "  |  nearby: " .. others, 16, 60)
-  love.graphics.print("Arrows/WASD move  |  field has random battles  |  Esc quit", 16, love.graphics.getHeight() - 28)
+  love.graphics.setColor(0.8, 0.85, 0.9)
+  love.graphics.print(self.status .. "  |  nearby: " .. others, 16, 96)
+  love.graphics.print("WASD move  |  I inventory  |  field battles  |  B debug fight  |  Esc quit", 16, love.graphics.getHeight() - 28)
   love.graphics.setColor(1, 1, 1)
 end
 
@@ -196,8 +213,9 @@ function Overworld:keypressed(key)
     Network.disconnect()
     love.event.quit()
   elseif key == "b" and not self.locked then
-    -- debug battle
     Network.send({ type = "debug_encounter", enemy = "slime" })
+  elseif key == "i" and not self.locked then
+    State.switch("inventory")
   end
 end
 

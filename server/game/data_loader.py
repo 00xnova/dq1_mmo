@@ -16,7 +16,14 @@ def load_data() -> dict:
     enemies = {e["id"]: e for e in raw["enemies"]}
     spells = raw["spells"]
     levels = {row["level"]: row for row in raw["levels"]}
-    return {"enemies": enemies, "spells": spells, "levels": levels}
+    return {
+        "enemies": enemies,
+        "spells": spells,
+        "levels": levels,
+        "equipment": raw.get("equipment") or {},
+        "consumables": raw.get("consumables") or {},
+        "shop": raw.get("shop") or [],
+    }
 
 
 def get_enemy(enemy_id: str) -> dict | None:

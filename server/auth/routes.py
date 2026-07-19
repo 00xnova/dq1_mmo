@@ -210,10 +210,10 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
 
     cursor = await db.execute(
         """
-        INSERT INTO characters (user_id, name, world_x, world_y)
-        VALUES (?, ?, ?, ?)
+        INSERT INTO characters (user_id, name, world_x, world_y, gold)
+        VALUES (?, ?, ?, ?, ?)
         """,
-        (user["id"], body.name, SPAWN_X, SPAWN_Y),
+        (user["id"], body.name, SPAWN_X, SPAWN_Y, "300"),
     )
     await db.commit()
     async with db.execute("SELECT * FROM characters WHERE id = ?", (cursor.lastrowid,)) as c:

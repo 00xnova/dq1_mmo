@@ -13,6 +13,10 @@ local Network = {
   _status = "disconnected",
   _pending_auth = nil,
   _inbox = {},
+  _url = nil,
+  _character_id = nil,
+  _reconnect_t = 0,
+  _auto_reconnect = true,
 }
 
 local function parse_ws_url(url)
@@ -53,9 +57,16 @@ end
 
 function Network.connect(url)
   url = url or Session.server_ws
-  Network.disconnect()
+  Network._url = url
+  Network._auto_reconnect = true
+  if Network.ws then
+    Network._auto_reconnect = false
+    Network.disconnect()
+    Network._auto_reconnect = true
+  end
   Network._status = "connecting"
   Network.authenticated = false
+  Network.connected = false
 
   local ok, ws_mod = pcall(require, "websocket")
   if not ok then
@@ -96,6 +107,11 @@ function Network.connect(url)
     Network.connected = false
     Network.authenticated = false
     Network._status = "closed"
+    Network.ws = nil
+    if Network._auto_reconnect then
+      Network._reconnect_t = 1.5
+      Network._status = "reconnecting"
+    end
     if Network.handlers._close then
       Network.handlers._close(code, reason)
     end
@@ -126,6 +142,7 @@ function Network.send(message)
 end
 
 function Network.auth(character_id)
+  Network._character_id = character_id
   return Network.send({
     type = "auth",
     token = Session.token,
@@ -133,7 +150,16 @@ function Network.auth(character_id)
   })
 end
 
-function Network.update(_dt)
+function Network.update(dt)
+  if Network._reconnect_t and Network._reconnect_t > 0 and not Network.ws then
+    Network._reconnect_t = Network._reconnect_t - (dt or 0)
+    if Network._reconnect_t <= 0 then
+      local ok = Network.connect(Network._url or Session.server_ws)
+      if ok and Network._character_id and Session.token then
+        Network.auth(Network._character_id)
+      end
+    end
+  end
   if Network.ws and Network.ws.update then
     Network.ws:update()
   end
@@ -147,6 +173,8 @@ function Network.update(_dt)
 end
 
 function Network.disconnect()
+  Network._auto_reconnect = false
+  Network._reconnect_t = 0
   if Network.ws and Network.ws.close then
     pcall(function()
       Network.ws:close()

@@ -1,4 +1,4 @@
---- Inventory state — Phase 5.
+--- Shared inventory cache.
 local Inventory = {
   items = {},
   equipment = {
@@ -7,12 +7,19 @@ local Inventory = {
     shield = nil,
     helmet = nil,
   },
+  bonuses = nil,
 }
 
-function Inventory.set(items, equipment)
+function Inventory.set(items, character)
   Inventory.items = items or {}
-  if equipment then
-    Inventory.equipment = equipment
+  if character then
+    Inventory.equipment = {
+      weapon = character.equipment_weapon,
+      armor = character.equipment_armor,
+      shield = character.equipment_shield,
+      helmet = character.equipment_helmet,
+    }
+    Inventory.bonuses = character.bonuses
   end
 end
 

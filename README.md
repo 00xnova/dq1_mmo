@@ -63,8 +63,8 @@ plan.md     implementation roadmap
 - [x] Phase 2 — client foundation / websocket client
 - [x] Phase 3 — world map, collision, nearby multiplayer movement
 - [x] Phase 4 — server DQ1 combat, encounters, combat UI
-- [ ] Phase 5 — equipment & shop
-- [ ] Phase 6 — MVP zones & polish
+- [x] Phase 5 — equipment, inventory, town shop
+- [x] Phase 6 — HP/MP bars, reconnect, town shop gate, step validation
 
 ### Combat
 
