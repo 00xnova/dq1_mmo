@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.127-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-658-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.128-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-662-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.127 · **658** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.128 · **662** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.127):** **`/status`** / **F** includes nearby online counts and a short plain summary · social peers may be mentioned · **658** tests.
+**Recent for players/ops (v0.5.128):** quick peeks **`/gold`** · **`/hp`** · **`/xp`** · **`/spells`** · **`/buffs`** mention your zone and whether you’re fighting (and nearby heroes when it helps) · **`/status`** still has the full room census · **662** tests.
 
 ---
 
@@ -195,12 +195,12 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/near** · **/here** | List heroes nearby (view range) — may note how many are AFK or fighting |
 | **/zone** · **/where** · **/whereami** · **/coords** · **/mapinfo** | Your zone, map position, **who is here**, population by area |
 | **/stats** · **/sheet** | Same as **/status** |
-| **/gold** · **/money** | How much gold you have |
-| **/hp** · **/vitals** · **/mp** | Quick HP / MP check |
-| **/xp** · **/level** · **/exp** | Level and XP toward the next level |
-| **/buffs** · **/effects** | Repel, radiant, AFK flags |
+| **/gold** · **/money** | How much gold you have (zone · fighting when relevant) |
+| **/hp** · **/vitals** · **/mp** | Quick HP / MP check (zone · fighting · nearby) |
+| **/xp** · **/level** · **/exp** | Level and XP toward the next level (zone · nearby) |
+| **/buffs** · **/effects** | Repel, radiant, AFK flags (zone when empty; nearby when active) |
 | **/keys** · **/controls** | Keybind summary |
-| **/spells** · **/magic** | Known battle + field spells |
+| **/spells** · **/magic** | Known battle + field spells (zone) |
 | **/bag** · **/inv** · **/items** | Open bag (same as **I**) |
 | **/unequip slot** · **/takeoff slot** | Unequip weapon / armor / shield / helmet |
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 658 passed
+# expect: 662 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.127** · **658** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.128** · **662** tests).
 
 | Do | Don’t |
 |:---|:------|

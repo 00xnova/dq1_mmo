@@ -37,6 +37,7 @@ from game.world_manager import (
 )
 from network.handlers import look as look_handlers
 from network.handlers import presence_peeks
+from network.handlers import self_peeks as self_peek_handlers
 from network.handlers import session as session_handlers
 from network.handlers import social_peeks
 from network.handlers import status as status_handlers
@@ -136,193 +137,19 @@ async def handle_message(
     if status_peek is not None:
         return status_peek
 
+    self_peek = await self_peek_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if self_peek is not None:
+        return self_peek
+
     presence_peek = await presence_peeks.handle(
         character_id, user_id, data, outbound
     )
     if presence_peek is not None:
         return presence_peek
 
-    # who/near/counts/zone/fighting · look · status via handlers
-
-    # --- Gold only (lightweight wallet peek) ---
-    if msg_type in ("gold", "money", "wallet"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        gold = char.get("gold")
-        outbound.append(
-            msg(
-                "gold",
-                gold=gold,
-                message=f"You have {gold} G.",
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- HP / MP vitals peek ---
-    if msg_type in ("hp", "mp", "vitals", "life"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        # Prefer live combat HP/MP when fighting
-        battle = combat_engine.get(character_id)
-        if battle is not None and battle.outcome == "ongoing":
-            chp = int(battle.hero.get("hp") or 0)
-            cmp_ = int(battle.hero.get("mp") or 0)
-            mhp = int(battle.hero.get("max_hp") or char.get("max_hp") or 0)
-            mmp = int(battle.hero.get("max_mp") or char.get("max_mp") or 0)
-        else:
-            chp = int(char.get("current_hp") or 0)
-            cmp_ = int(char.get("current_mp") or 0)
-            mhp = int(char.get("max_hp") or 0)
-            mmp = int(char.get("max_mp") or 0)
-        outbound.append(
-            msg(
-                "vitals",
-                hp=chp,
-                max_hp=mhp,
-                mp=cmp_,
-                max_mp=mmp,
-                in_combat=bool(
-                    battle is not None and battle.outcome == "ongoing"
-                ),
-                message=f"HP {chp}/{mhp} · MP {cmp_}/{mmp}",
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- Level / XP peek ---
-    if msg_type in ("xp", "exp", "level", "experience"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        from game.progression import xp_to_next_level
-
-        lvl = int(char.get("level") or 1)
-        xp = int(char.get("experience") or 0)
-        xp_prog = xp_to_next_level(xp, lvl)
-        to_next = xp_prog.get("xp_to_next")
-        outbound.append(
-            msg(
-                "xp",
-                level=lvl,
-                experience=xp,
-                xp_progress=xp_prog,
-                message=(
-                    f"Level {lvl} · {xp} XP"
-                    + (
-                        f" · {to_next} to next"
-                        if to_next is not None and not xp_prog.get("max_level")
-                        else ""
-                    )
-                ),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- Spells list (battle + field known at current level) ---
-    if msg_type in ("spells", "magic", "spell_list"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        lvl = int(char.get("level") or 1)
-        battle = battle_spells_at(lvl)
-        field = field_spells_at(lvl)
-        outbound.append(
-            msg(
-                "spells",
-                battle=battle,
-                field=field,
-                level=lvl,
-                message=(
-                    f"Battle: {', '.join(battle) or 'none'} · "
-                    f"Field: {', '.join(field) or 'none'}"
-                ),
-            )
-        )
-        return character_id, user_id, outbound, None
-
-    # --- Active buffs / effects (repel, radiant, combat, AFK) ---
-    if msg_type in ("buffs", "effects", "debuffs", "status_effects"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        meta = manager.get_meta(character_id)
-        repel = manager.repel_remaining(character_id)
-        radiant = manager.radiant_remaining(character_id)
-        in_combat = combat_engine.is_in_combat(character_id)
-        afk = bool(meta.get("afk")) if meta else False
-        from network.websocket_manager import _is_idle as _idle_chk
-        import time as _time
-
-        idle = _idle_chk(meta) if meta else False
-        afk_for = None
-        if afk and meta is not None:
-            try:
-                since = float(meta.get("afk_since") or 0.0)
-                if since > 0:
-                    afk_for = max(0, int(_time.monotonic() - since))
-            except (TypeError, ValueError):
-                afk_for = None
-        bits: list[str] = []
-        if repel > 0:
-            bits.append(f"Repel {repel}")
-        if radiant > 0:
-            bits.append(f"Radiant {radiant}")
-        if in_combat:
-            bits.append("In combat")
-        afk_reason = None
-        if afk and meta is not None:
-            am = meta.get("afk_message")
-            if isinstance(am, str) and am.strip():
-                afk_reason = am.strip()[:48]
-        if afk:
-            if afk_reason:
-                bits.append(
-                    f"AFK ({afk_reason})"
-                    + (f" {afk_for}s" if afk_for is not None else "")
-                )
-            else:
-                bits.append(f"AFK {afk_for}s" if afk_for is not None else "AFK")
-        elif idle:
-            bits.append("Idle")
-        body = {
-            "type": "buffs",
-            "repel": repel,
-            "radiant": radiant,
-            "in_combat": in_combat,
-            "afk": afk,
-            "idle": idle,
-            "session_id": manager.session_id(character_id),
-            "message": (" · ".join(bits) if bits else "No active buffs."),
-        }
-        if afk_for is not None:
-            body["afk_for"] = afk_for
-        if afk_reason:
-            body["afk_message"] = afk_reason
-        outbound.append(body)
-        return character_id, user_id, outbound, None
+    # who/near/counts/zone · look · status · gold/hp/xp/spells/buffs via handlers
 
     # --- Controls / keybinds summary (client HUD helper) ---
     if msg_type in ("keys", "controls", "keybinds", "keymap"):
