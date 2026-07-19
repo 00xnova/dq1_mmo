@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.118` (`server/config.py` → `VERSION`) · **601** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.119` (`server/config.py` → `VERSION`) · **608** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.118** / **601** until the suite or `VERSION` changes.  
-Last **pushed** ship: `b8475cb` (v0.5.118).
+Keep badges at **0.5.119** / **608** until the suite or `VERSION` changes.  
+Last **pushed** ship: `81e3c25` (docs) / `b8475cb` (v0.5.118). Shipping **0.5.119** (code + docs local).  
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.118 / 601** · human plain-language reconnect/share · mermaid @share/@from · **humans ≠ agents** · protocol only here.
+Docs pass (**this run**): badges **0.5.119 / 608** · human control tables for `@emote`/`@emotedby` · README mermaid wave+share · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -136,7 +136,8 @@ All messages are JSON objects with a `type` string.
 | `reply` / `r` | `text` (or whisper with `reply:true` / `to:@last`) | Reply to last whisper peer (server-tracked, soft-grace). Raw type `r` is reply-only, not a separate channel. |
 | `emote` | `emote` | Nearby social: wave, bow, cheer, dance, cry, laugh, point, sit, think |
 | `wave` / `bow` / `cheer` / `dance` / `cry` / `laugh` / `point` / `sit` / `think` | optional `to`/`to_id` | Emote shortcuts (same as `emote` + that name); directed + `@last` / `reply` |
-| `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last directed-emote target (soft-grace). Rate-exempt. |
+| `lastemote` / `last_emote` / `who_emote` / `emote_last` | — | Last emote **to** + **from** (soft-grace, near/far). Rate-exempt. |
+| social `to` | `@emote` / `@lastemote` · `@emotedby` / `@wavedby` | Emote to (then from) · emote-from only |
 | `lastshare` / `last_share` / `who_share` / `share_last` | — | Last share **to** + **from** (soft-grace, near/far). Rate-exempt. |
 | social `to` tokens | `@share` / `@lastshare` · `@from` / `@sharefrom` | Share to (then from) · share-from only |
 | `busy` | optional reason | AFK alias (same as `afk`/`away`). |
@@ -477,6 +478,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 264. **`handlers/presence_peeks.py`:** who/near/counts/zone/fighting extracted.
 265. **Auth/sync soft reconnect:** `last_share_to` / `last_share_from` cards + `restored.last_share` + welcome “share peers”.
 266. Tests: `test_features_v05118` + `test_mp_reliability_v05118`.
+267. **`note_emote_from` / `last_emote_from`:** directed emote recipient memory + soft-grace.
+268. **`lastemote`:** to + from cards (like lastshare).
+269. **`@emote` / `@lastemote`:** mode emote (to then from); **`@emotedby` / `@wavedby` / `@waved`:** emote_from only.
+270. Tests: `test_features_v05119` + `test_mp_reliability_v05119`.
 
 ## Tests (mandatory for your changes)
 

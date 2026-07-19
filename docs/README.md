@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.118** (2026-07-19) · suite **601** tests · ship `b8475cb` · README @share/@from mermaid · plain-language soft reconnect
+**Last docs refresh:** **v0.5.119** (2026-07-19) · suite **608** tests · two-way waves · `@emote` / `@emotedby` · soft reconnect emote partners
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -67,7 +67,7 @@ flowchart TB
 - Social: `/say` `/g` `/w` `/z` `/roll` `/find` `/who` `/near` `/ignore` `/r` `/inn` …
 - Shop town-only · not in combat · gold toasts · high-tier gear
 - Join welcome may mention nearby heroes
-- Soft reconnect: mute list, last whisper partner, and buffs survive a brief disconnect
+- Soft reconnect: mute list, last whisper partner, **share partners**, **emote partners**, and buffs survive a brief disconnect
 - Brief reconnect can keep your session timer; a full leave starts a fresh one
 - Failed private messages do not block your next chat line
 - `/version` · `/time` · `/whoami` · `/stats` · `/whereami` · `/motd` · `/afk` · `/quit`
@@ -83,7 +83,9 @@ flowchart TB
 - `/cast heal` · `/repel` · `/return` field magic · `/discard` from chat
 - **Friendly item names** — `/buy copper sword` · `/equip dragon scale` · aliases like `herbs` / `wings`
 - **`/afk lunch`** optional reason · peers see it on look / whisper · how many AFK on rosters
-- **`/wave Name`** · **`/wave @last`** · **`/lastemote`** · emote shortcuts (`/bow`, …)
+- **`/wave Name`** · **`/wave @last`** · **`/lastemote`** (to + from) · emote shortcuts (`/bow`, …)
+- **`@emote`** = who *you* last waved at · **`@emotedby`** = who last waved *at you* (**@** required)
+- **`@share`** = who *you* shared with · **`@from`** = who shared *with you* (**@** required)
 - **Meetup loop (not a party):** **`/invite` · `/share` · `/askwhere` · `/thank` · `/accept` · `/decline` · `/cancel` · `/lastinvite` · `/pending`**
 - **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
 - **`/thank` · `/ty @last`** — private thanks (handy after a share)
