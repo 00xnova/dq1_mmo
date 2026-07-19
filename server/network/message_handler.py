@@ -2,9 +2,46 @@ from typing import Any
 
 from auth.jwt_handler import decode_access_token
 from database.db import get_db
-from game.world_manager import is_adjacent_step, is_walkable, map_payload
+from game.combat_engine import combat_engine
+from game.data_loader import battle_spells_at
+from game.enemy_spawner import roll_encounter
+from game.player_manager import apply_character_patch, get_character
+from game.rng import Rng
+from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload
 from network.protocol import ClientMessageType, ServerMessageType, msg
 from network.websocket_manager import manager
+
+
+def _combat_update(battle, events: list | None = None) -> dict:
+    snap = battle.snapshot()
+    return msg(
+        ServerMessageType.COMBAT_UPDATE,
+        player_hp=snap["hero"]["hp"],
+        player_mp=snap["hero"]["mp"],
+        player_max_hp=snap["hero"]["max_hp"],
+        player_max_mp=snap["hero"]["max_mp"],
+        enemy=snap["enemy"],
+        events=events or [],
+        legal_actions=snap["legal_actions"],
+        turn=snap["turn"],
+        phase=snap["phase"],
+        outcome=snap["outcome"],
+    )
+
+
+async def _persist_battle_end(character_id: int, battle) -> dict:
+    patch = battle.character_patch()
+    if battle.outcome == "defeat":
+        # DQ1-ish: wake at town, keep XP, lose half gold
+        gold = int(str(patch.get("gold", "0")))
+        gold = gold // 2
+        patch["gold"] = str(gold)
+        patch["current_hp"] = max(1, int(patch.get("max_hp", 15)) // 2)
+        patch["world_x"] = SPAWN_X
+        patch["world_y"] = SPAWN_Y
+        manager.set_position(character_id, SPAWN_X, SPAWN_Y)
+    char = await apply_character_patch(character_id, patch)
+    return char or {}
 
 
 async def handle_message(
@@ -12,11 +49,6 @@ async def handle_message(
     user_id: int | None,
     data: dict[str, Any],
 ) -> tuple[int | None, int | None, list[dict], dict | None]:
-    """
-    Process one client message.
-    Returns (character_id, user_id, outbound_to_sender, connect_meta|None).
-    connect_meta is set on successful auth for ConnectionManager.connect.
-    """
     msg_type = data.get("type")
     outbound: list[dict] = []
     connect_meta: dict | None = None
@@ -48,12 +80,9 @@ async def handle_message(
             return character_id, user_id, outbound, None
 
         character = {k: row[k] for k in row.keys()}
-        # Clamp saved position onto walkable tiles
         x = int(character["world_x"])
         y = int(character["world_y"])
         if not is_walkable(x, y):
-            from game.world_manager import SPAWN_X, SPAWN_Y
-
             x, y = SPAWN_X, SPAWN_Y
             await db.execute(
                 "UPDATE characters SET world_x = ?, world_y = ? WHERE id = ?",
@@ -62,6 +91,8 @@ async def handle_message(
             await db.commit()
             character["world_x"] = x
             character["world_y"] = y
+
+        character["known_spells"] = battle_spells_at(int(character["level"]))
 
         connect_meta = {
             "character_id": character["id"],
@@ -80,7 +111,6 @@ async def handle_message(
                 map=map_payload(),
             )
         )
-        # Nearby snapshot filled after connect in main.py
         outbound.append(msg(ServerMessageType.WORLD_STATE, players=[], enemies=[], map=map_payload()))
         return character["id"], payload["user_id"], outbound, connect_meta
 
@@ -88,7 +118,86 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
         return character_id, user_id, outbound, None
 
+    # --- Combat actions ---
+    if msg_type in (
+        ClientMessageType.ATTACK,
+        ClientMessageType.FLEE,
+        ClientMessageType.USE_SPELL,
+        "combat_action",
+    ):
+        battle = combat_engine.get(character_id)
+        if battle is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="not in combat"))
+            return character_id, user_id, outbound, None
+
+        if msg_type == ClientMessageType.ATTACK or (
+            msg_type == "combat_action" and data.get("action") == "attack"
+        ):
+            action = {"type": "attack"}
+        elif msg_type == ClientMessageType.FLEE or (
+            msg_type == "combat_action" and data.get("action") == "flee"
+        ):
+            action = {"type": "flee"}
+        else:
+            spell = data.get("spell") or data.get("id")
+            if msg_type == "combat_action":
+                spell = data.get("spell") or data.get("id")
+                if data.get("action") == "spell":
+                    action = {"type": "spell", "id": spell}
+                else:
+                    action = {"type": data.get("action"), "id": spell}
+            else:
+                action = {"type": "spell", "id": spell}
+
+        result = battle.act(action)
+        if not result["ok"]:
+            outbound.append(msg(ServerMessageType.ERROR, reason=result.get("error") or "bad action"))
+            outbound.append(_combat_update(battle, []))
+            return character_id, user_id, outbound, None
+
+        events = result["events"]
+        outbound.append(_combat_update(battle, events))
+
+        for e in events:
+            if e.get("kind") == "level_up":
+                outbound.append(
+                    msg(
+                        ServerMessageType.LEVEL_UP,
+                        new_level=e.get("level"),
+                        new_stats=e.get("stats"),
+                    )
+                )
+
+        if battle.outcome != "ongoing":
+            char = await _persist_battle_end(character_id, battle)
+            combat_engine.end(character_id)
+            outbound.append(
+                msg(
+                    ServerMessageType.COMBAT_END,
+                    result=battle.outcome,
+                    xp=(battle.rewards or {}).get("xp", 0),
+                    gold=(battle.rewards or {}).get("gold", 0),
+                    character=char,
+                    events=events,
+                )
+            )
+            if battle.outcome == "defeat":
+                outbound.append(
+                    msg(
+                        ServerMessageType.PLAYER_MOVED,
+                        player_id=character_id,
+                        x=SPAWN_X,
+                        y=SPAWN_Y,
+                    )
+                )
+        return character_id, user_id, outbound, None
+
+    # --- Movement ---
     if msg_type == ClientMessageType.MOVE:
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
+            return character_id, user_id, outbound, None
+
         x = data.get("x")
         y = data.get("y")
         if not isinstance(x, (int, float)) or not isinstance(y, (int, float)):
@@ -103,25 +212,11 @@ async def handle_message(
 
         fx, fy = int(meta["x"]), int(meta["y"])
         if not is_adjacent_step(fx, fy, tx, ty):
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="invalid step",
-                    x=fx,
-                    y=fy,
-                )
-            )
+            outbound.append(msg(ServerMessageType.ERROR, reason="invalid step", x=fx, y=fy))
             return character_id, user_id, outbound, None
 
         if not is_walkable(tx, ty):
-            outbound.append(
-                msg(
-                    ServerMessageType.ERROR,
-                    reason="blocked",
-                    x=fx,
-                    y=fy,
-                )
-            )
+            outbound.append(msg(ServerMessageType.ERROR, reason="blocked", x=fx, y=fy))
             return character_id, user_id, outbound, None
 
         db = await get_db()
@@ -135,6 +230,51 @@ async def handle_message(
         move_msg = msg(ServerMessageType.PLAYER_MOVED, player_id=character_id, x=tx, y=ty)
         await manager.broadcast_nearby(character_id, move_msg, include_self=False)
         outbound.append(move_msg)
+
+        # Random encounter
+        enemy_id = roll_encounter(tx, ty, Rng())
+        if enemy_id:
+            char = await get_character(character_id)
+            if char:
+                char["known_spells"] = battle_spells_at(int(char["level"]))
+                battle = combat_engine.start(character_id, char, enemy_id)
+                start_events = battle._take_batch()
+                outbound.append(
+                    msg(
+                        ServerMessageType.COMBAT_START,
+                        enemy=battle.enemy_public(),
+                        hero=battle.hero_public(),
+                        legal_actions=battle.legal_actions(),
+                        events=start_events,
+                    )
+                )
+                outbound.append(_combat_update(battle, start_events))
+
+        return character_id, user_id, outbound, None
+
+    # Debug/test: force encounter
+    if msg_type == "debug_encounter":
+        if combat_engine.is_in_combat(character_id):
+            outbound.append(msg(ServerMessageType.ERROR, reason="already in combat"))
+            return character_id, user_id, outbound, None
+        enemy_id = data.get("enemy") or "slime"
+        char = await get_character(character_id)
+        if not char:
+            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
+            return character_id, user_id, outbound, None
+        char["known_spells"] = battle_spells_at(int(char["level"]))
+        battle = combat_engine.start(character_id, char, enemy_id, seed=data.get("seed"))
+        start_events = battle._take_batch()
+        outbound.append(
+            msg(
+                ServerMessageType.COMBAT_START,
+                enemy=battle.enemy_public(),
+                hero=battle.hero_public(),
+                legal_actions=battle.legal_actions(),
+                events=start_events,
+            )
+        )
+        outbound.append(_combat_update(battle, start_events))
         return character_id, user_id, outbound, None
 
     outbound.append(msg(ServerMessageType.ERROR, reason=f"unknown or unsupported type: {msg_type}"))

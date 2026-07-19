@@ -62,9 +62,16 @@ plan.md     implementation roadmap
 - [x] Phase 1 — project setup & auth
 - [x] Phase 2 — client foundation / websocket client
 - [x] Phase 3 — world map, collision, nearby multiplayer movement
-- [ ] Phase 4 — combat (dq1-combat)
+- [x] Phase 4 — server DQ1 combat, encounters, combat UI
 - [ ] Phase 5 — equipment & shop
 - [ ] Phase 6 — MVP zones & polish
+
+### Combat
+
+- Server-authoritative battles (DQ1 formulas from `dq1-combat`)
+- Random encounters on **field** tiles (not town)
+- Client: `B` forces a slime fight (debug)
+- Actions: `attack`, `flee`, `use_spell` over WebSocket
 
 ## Map tiles
 
