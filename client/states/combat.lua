@@ -48,6 +48,8 @@ end
 
 function Combat:enter(payload)
   payload = payload or {}
+  -- Keep socket; replace handlers so overworld move handlers don't fight us
+  Network.clear_handlers()
   self.enemy = payload.enemy
   self.hero = payload.hero or {
     hp = Session.character and Session.character.current_hp or 15,
@@ -110,11 +112,11 @@ function Combat:enter(payload)
   end)
 end
 
-function Combat:leave()
-  -- handlers cleared when overworld re-enters
-end
+function Combat:leave() end
 
-function Combat:update(dt) end
+function Combat:update(dt)
+  Network.update(dt)
+end
 
 function Combat:_send(action)
   if self.ended then
@@ -179,37 +181,46 @@ function Combat:draw()
   love.graphics.clear(0.08, 0.05, 0.1)
   local w, h = love.graphics.getDimensions()
 
-  UI.panel(30, 30, w - 60, 120)
+  UI.panel(30, 30, w - 60, 130)
   love.graphics.setColor(1, 0.92, 0.45)
   love.graphics.print("COMBAT", 50, 45)
   love.graphics.setColor(0.9, 0.9, 0.95)
   if self.hero then
+    local hp = self.hero.hp or 0
+    local mhp = math.max(1, self.hero.max_hp or 1)
+    local mp = self.hero.mp or 0
+    local mmp = math.max(0, self.hero.max_mp or 0)
     love.graphics.print(
-      string.format(
-        "%s  Lv%d   HP %d/%d   MP %d/%d",
-        self.hero.name or "Hero",
-        self.hero.level or 1,
-        self.hero.hp or 0,
-        self.hero.max_hp or 0,
-        self.hero.mp or 0,
-        self.hero.max_mp or 0
-      ),
+      string.format("%s  Lv%d", self.hero.name or "Hero", self.hero.level or 1),
       50,
-      80
+      72
     )
+    love.graphics.setColor(0.2, 0.2, 0.25)
+    love.graphics.rectangle("fill", 50, 96, 200, 12)
+    love.graphics.setColor(0.85, 0.25, 0.28)
+    love.graphics.rectangle("fill", 50, 96, 200 * math.min(1, hp / mhp), 12)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(string.format("HP %d/%d", hp, mhp), 54, 94)
+    if mmp > 0 then
+      love.graphics.setColor(0.2, 0.2, 0.25)
+      love.graphics.rectangle("fill", 270, 96, 140, 12)
+      love.graphics.setColor(0.3, 0.5, 0.95)
+      love.graphics.rectangle("fill", 270, 96, 140 * math.min(1, mp / mmp), 12)
+      love.graphics.setColor(1, 1, 1)
+      love.graphics.print(string.format("MP %d/%d", mp, mmp), 274, 94)
+    end
   end
   if self.enemy then
+    local ehp = self.enemy.hp or 0
+    local emhp = math.max(1, self.enemy.max_hp or 1)
     love.graphics.setColor(1, 0.55, 0.55)
-    love.graphics.print(
-      string.format(
-        "%s   HP %d/%d",
-        self.enemy.name or "?",
-        self.enemy.hp or 0,
-        self.enemy.max_hp or 0
-      ),
-      50,
-      110
-    )
+    love.graphics.print(self.enemy.name or "?", 50, 120)
+    love.graphics.setColor(0.2, 0.15, 0.15)
+    love.graphics.rectangle("fill", 160, 122, 200, 10)
+    love.graphics.setColor(0.9, 0.35, 0.25)
+    love.graphics.rectangle("fill", 160, 122, 200 * math.min(1, ehp / emhp), 10)
+    love.graphics.setColor(1, 1, 1)
+    love.graphics.print(string.format("%d/%d", ehp, emhp), 370, 118)
   end
 
   -- enemy blob

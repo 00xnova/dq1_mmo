@@ -20,3 +20,11 @@ GOOGLE_REDIRECT_URI = os.getenv(
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "8000"))
 CORS_ORIGINS = os.getenv("CORS_ORIGINS", "*").split(",")
+
+# Allow client debug_encounter / forced fights (disable in production)
+ALLOW_DEBUG = os.getenv("ALLOW_DEBUG", "1") not in ("0", "false", "False")
+
+# Starting gold for new characters
+STARTING_GOLD = os.getenv("STARTING_GOLD", "300")
+
+VERSION = "0.3.0"

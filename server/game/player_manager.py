@@ -1,4 +1,5 @@
-from database.db import get_db
+from database.db import db_write, get_db
+from game.serialize import character_dict
 
 
 async def get_character(character_id: int) -> dict | None:
@@ -7,20 +8,19 @@ async def get_character(character_id: int) -> dict | None:
         row = await c.fetchone()
     if row is None:
         return None
-    return {k: row[k] for k in row.keys()}
+    return character_dict(row)
 
 
 async def save_position(character_id: int, x: float, y: float) -> None:
-    db = await get_db()
-    await db.execute(
-        "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-        (x, y, character_id),
-    )
-    await db.commit()
+    async with db_write() as db:
+        await db.execute(
+            "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+            (x, y, character_id),
+        )
+        await db.commit()
 
 
 async def apply_character_patch(character_id: int, patch: dict) -> dict | None:
-    db = await get_db()
     fields = []
     values = []
     allowed = {
@@ -46,9 +46,10 @@ async def apply_character_patch(character_id: int, patch: dict) -> dict | None:
         return await get_character(character_id)
     fields.append("updated_at = CURRENT_TIMESTAMP")
     values.append(character_id)
-    await db.execute(
-        f"UPDATE characters SET {', '.join(fields)} WHERE id = ?",
-        tuple(values),
-    )
-    await db.commit()
+    async with db_write() as db:
+        await db.execute(
+            f"UPDATE characters SET {', '.join(fields)} WHERE id = ?",
+            tuple(values),
+        )
+        await db.commit()
     return await get_character(character_id)

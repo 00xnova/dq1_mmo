@@ -71,11 +71,7 @@ function Login:_submit()
     ok, err = Auth.register(self.fields.email, self.fields.password, self.fields.username)
   end
   if not ok then
-    self.error = err or "request failed"
-    -- surface detail tables
-    if type(self.error) == "table" then
-      self.error = self.error.msg or self.error[1] and self.error[1].msg or "validation error"
-    end
+    self.error = tostring(err or "request failed")
     return
   end
   State.switch("character")

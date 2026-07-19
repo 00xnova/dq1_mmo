@@ -22,6 +22,7 @@ function Inventory:enter()
   self.items = {}
   self.shop = {}
 
+  Network.clear_handlers()
   Network.on("inventory_update", function(data)
     self.items = data.items or {}
     if data.character then

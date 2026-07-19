@@ -1,9 +1,10 @@
 from typing import Any
 
 from auth.jwt_handler import decode_access_token
-from database.db import get_db
+from config import ALLOW_DEBUG
+from database.db import db_write, get_db
 from game.combat_engine import combat_engine
-from game.data_loader import battle_spells_at
+from game.data_loader import battle_spells_at, get_enemy
 from game.enemy_spawner import roll_encounter
 from game.item_manager import (
     buy_item,
@@ -17,6 +18,7 @@ from game.item_manager import (
 )
 from game.player_manager import apply_character_patch, get_character
 from game.rng import Rng
+from game.serialize import character_dict
 from game.world_manager import SPAWN_X, SPAWN_Y, is_adjacent_step, is_walkable, map_payload, zone_at
 from network.protocol import ClientMessageType, ServerMessageType, msg
 from network.websocket_manager import manager
@@ -30,6 +32,20 @@ async def _inventory_msg(character_id: int) -> dict:
         char["known_spells"] = battle_spells_at(int(char["level"]))
         char = character_public(char, items)
     return msg(ServerMessageType.INVENTORY_UPDATE, items=items, character=char)
+
+
+async def handle_disconnect(character_id: int) -> None:
+    """Persist and drop any in-flight battle when a client disconnects."""
+    battle = combat_engine.get(character_id)
+    if battle is None:
+        return
+    # Soft-save HP/MP mid-fight; no rewards
+    patch = {
+        "current_hp": max(1, int(battle.hero["hp"])),
+        "current_mp": max(0, int(battle.hero["mp"])),
+    }
+    await apply_character_patch(character_id, patch)
+    combat_engine.end(character_id)
 
 
 def _combat_update(battle, events: list | None = None) -> dict:
@@ -61,7 +77,11 @@ async def _persist_battle_end(character_id: int, battle) -> dict:
         patch["world_y"] = SPAWN_Y
         manager.set_position(character_id, SPAWN_X, SPAWN_Y)
     char = await apply_character_patch(character_id, patch)
-    return char or {}
+    if not char:
+        return {}
+    char["known_spells"] = battle_spells_at(int(char["level"]))
+    char["bonuses"] = equipment_bonuses(char)
+    return char
 
 
 async def handle_message(
@@ -99,18 +119,23 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.AUTH_FAIL, reason="character not found"))
             return character_id, user_id, outbound, None
 
-        character = {k: row[k] for k in row.keys()}
+        character = character_dict(row)
         x = int(character["world_x"])
         y = int(character["world_y"])
         if not is_walkable(x, y):
             x, y = SPAWN_X, SPAWN_Y
-            await db.execute(
-                "UPDATE characters SET world_x = ?, world_y = ? WHERE id = ?",
-                (x, y, character["id"]),
-            )
-            await db.commit()
+            async with db_write() as wdb:
+                await wdb.execute(
+                    "UPDATE characters SET world_x = ?, world_y = ? WHERE id = ?",
+                    (x, y, character["id"]),
+                )
+                await wdb.commit()
             character["world_x"] = x
             character["world_y"] = y
+
+        # Drop stale combat if reconnecting
+        if combat_engine.is_in_combat(character["id"]):
+            await handle_disconnect(character["id"])
 
         character["known_spells"] = battle_spells_at(int(character["level"]))
         character["bonuses"] = equipment_bonuses(character)
@@ -240,12 +265,12 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="blocked", x=fx, y=fy))
             return character_id, user_id, outbound, None
 
-        db = await get_db()
-        await db.execute(
-            "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
-            (tx, ty, character_id),
-        )
-        await db.commit()
+        async with db_write() as db:
+            await db.execute(
+                "UPDATE characters SET world_x = ?, world_y = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?",
+                (tx, ty, character_id),
+            )
+            await db.commit()
         manager.set_position(character_id, tx, ty)
 
         move_msg = msg(ServerMessageType.PLAYER_MOVED, player_id=character_id, x=tx, y=ty)
@@ -279,6 +304,10 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     if msg_type == ClientMessageType.SHOP:
+        meta = manager.get_meta(character_id)
+        if meta and zone_at(int(meta["x"]), int(meta["y"])) != "town":
+            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
+            return character_id, user_id, outbound, None
         outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
         return character_id, user_id, outbound, None
 
@@ -292,8 +321,8 @@ async def handle_message(
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
-        db = await get_db()
-        ok, reason = await equip_item(db, char, str(slot or ""), str(item_id or ""))
+        async with db_write() as db:
+            ok, reason = await equip_item(db, char, str(slot or ""), str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
         outbound.append(await _inventory_msg(character_id))
@@ -308,8 +337,8 @@ async def handle_message(
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
-        db = await get_db()
-        ok, reason = await unequip_item(db, char, str(slot or ""))
+        async with db_write() as db:
+            ok, reason = await unequip_item(db, char, str(slot or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
         outbound.append(await _inventory_msg(character_id))
@@ -320,7 +349,7 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
-        if meta and zone_at(int(meta["x"]), int(meta["y"])) != "town":
+        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
             outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
@@ -328,8 +357,8 @@ async def handle_message(
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
-        db = await get_db()
-        ok, reason = await buy_item(db, char, str(item_id or ""))
+        async with db_write() as db:
+            ok, reason = await buy_item(db, char, str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
         outbound.append(await _inventory_msg(character_id))
@@ -339,30 +368,43 @@ async def handle_message(
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
+            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
+            return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
-        db = await get_db()
-        ok, reason = await sell_item(db, char, str(item_id or ""))
+        async with db_write() as db:
+            ok, reason = await sell_item(db, char, str(item_id or ""))
         if not ok:
             outbound.append(msg(ServerMessageType.ERROR, reason=reason))
         outbound.append(await _inventory_msg(character_id))
         return character_id, user_id, outbound, None
 
-    # Debug/test: force encounter
+    # Debug/test: force encounter (ALLOW_DEBUG=1)
     if msg_type == "debug_encounter":
+        if not ALLOW_DEBUG:
+            outbound.append(msg(ServerMessageType.ERROR, reason="debug disabled"))
+            return character_id, user_id, outbound, None
         if combat_engine.is_in_combat(character_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="already in combat"))
             return character_id, user_id, outbound, None
         enemy_id = data.get("enemy") or "slime"
+        if get_enemy(str(enemy_id)) is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="unknown enemy"))
+            return character_id, user_id, outbound, None
         char = await get_character(character_id)
         if not char:
             outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
             return character_id, user_id, outbound, None
         char["known_spells"] = battle_spells_at(int(char["level"]))
-        battle = combat_engine.start(character_id, char, enemy_id, seed=data.get("seed"))
+        seed = data.get("seed")
+        if seed is not None and not isinstance(seed, int):
+            seed = None
+        battle = combat_engine.start(character_id, char, str(enemy_id), seed=seed)
         start_events = battle._take_batch()
         outbound.append(
             msg(

@@ -7,6 +7,12 @@ local function auth_header()
   return { Authorization = "Bearer " .. (Session.token or "") }
 end
 
+local function parse_fail(res, fallback)
+  local data = Http.decode_json(res.body)
+  local detail = data and data.detail or fallback
+  return nil, Http.format_error(detail)
+end
+
 function Auth.register(email, password, username)
   local res, err = Http.post_json(Session.server_http .. "/auth/register", {
     email = email,
@@ -16,9 +22,12 @@ function Auth.register(email, password, username)
   if not res then
     return nil, err
   end
-  local data = Http.decode_json(res.body)
   if res.status ~= 201 then
-    return nil, (data and data.detail) or ("register failed: " .. tostring(res.status))
+    return parse_fail(res, "register failed: " .. tostring(res.status))
+  end
+  local data = Http.decode_json(res.body)
+  if not data or not data.access_token then
+    return nil, "bad register response"
   end
   Session.token = data.access_token
   Session.user_id = data.user_id
@@ -34,9 +43,12 @@ function Auth.login(email, password)
   if not res then
     return nil, err
   end
-  local data = Http.decode_json(res.body)
   if res.status ~= 200 then
-    return nil, (data and data.detail) or ("login failed: " .. tostring(res.status))
+    return parse_fail(res, "login failed: " .. tostring(res.status))
+  end
+  local data = Http.decode_json(res.body)
+  if not data or not data.access_token then
+    return nil, "bad login response"
   end
   Session.token = data.access_token
   Session.user_id = data.user_id
@@ -49,9 +61,12 @@ function Auth.list_characters()
   if not res then
     return nil, err
   end
-  local data = Http.decode_json(res.body)
   if res.status ~= 200 then
-    return nil, (data and data.detail) or "list characters failed"
+    return parse_fail(res, "list characters failed")
+  end
+  local data = Http.decode_json(res.body)
+  if type(data) ~= "table" then
+    return nil, "bad characters response"
   end
   return data
 end
@@ -65,9 +80,12 @@ function Auth.create_character(name)
   if not res then
     return nil, err
   end
-  local data = Http.decode_json(res.body)
   if res.status ~= 201 then
-    return nil, (data and data.detail) or "create character failed"
+    return parse_fail(res, "create character failed")
+  end
+  local data = Http.decode_json(res.body)
+  if not data or not data.id then
+    return nil, "bad create response"
   end
   return data
 end

@@ -5,9 +5,10 @@ from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from auth.routes import router as auth_router
-from config import CORS_ORIGINS, HOST, PORT
+from config import CORS_ORIGINS, HOST, PORT, VERSION
 from database.db import close_db, init_db
-from network.message_handler import handle_message
+from game.combat_engine import combat_engine
+from network.message_handler import handle_disconnect, handle_message
 from network.protocol import ServerMessageType, msg
 from network.websocket_manager import manager
 
@@ -19,7 +20,7 @@ async def lifespan(_app: FastAPI):
     await close_db()
 
 
-app = FastAPI(title="DQ1 MMO Server", version="0.2.0", lifespan=lifespan)
+app = FastAPI(title="DQ1 MMO Server", version=VERSION, lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -34,7 +35,13 @@ app.include_router(auth_router)
 
 @app.get("/health")
 async def health():
-    return {"status": "ok", "service": "dq1-mmo", "online": len(manager.online_ids())}
+    return {
+        "status": "ok",
+        "service": "dq1-mmo",
+        "version": VERSION,
+        "online": len(manager.online_ids()),
+        "combats": len(combat_engine.active),
+    }
 
 
 @app.get("/world/map")
@@ -42,6 +49,11 @@ async def world_map():
     from game.world_manager import map_payload
 
     return map_payload()
+
+
+def _json_safe(obj):
+    """Ensure websocket payloads are JSON-serializable."""
+    return json.loads(json.dumps(obj, default=str))
 
 
 @app.websocket("/ws")
@@ -53,6 +65,11 @@ async def websocket_endpoint(websocket: WebSocket):
     try:
         while True:
             raw = await websocket.receive_text()
+            if len(raw) > 16_384:
+                await websocket.send_text(
+                    json.dumps(msg(ServerMessageType.ERROR, reason="message too large"))
+                )
+                continue
             try:
                 data = json.loads(raw)
             except json.JSONDecodeError:
@@ -67,9 +84,15 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
                 continue
 
-            character_id, user_id, outbound, connect_meta = await handle_message(
-                character_id, user_id, data
-            )
+            try:
+                character_id, user_id, outbound, connect_meta = await handle_message(
+                    character_id, user_id, data
+                )
+            except Exception as exc:
+                await websocket.send_text(
+                    json.dumps(msg(ServerMessageType.ERROR, reason=f"server error: {exc}"))
+                )
+                continue
 
             if connect_meta is not None:
                 await manager.connect(
@@ -81,7 +104,6 @@ async def websocket_endpoint(websocket: WebSocket):
                     map_id=connect_meta["map_id"],
                     level=connect_meta["level"],
                 )
-                # Fill world_state with nearby players
                 nearby = manager.nearby_players(connect_meta["character_id"])
                 for i, out in enumerate(outbound):
                     if out.get("type") == ServerMessageType.WORLD_STATE:
@@ -105,11 +127,12 @@ async def websocket_endpoint(websocket: WebSocket):
                 )
 
             for out in outbound:
-                await websocket.send_text(json.dumps(out))
+                await websocket.send_text(json.dumps(_json_safe(out)))
     except WebSocketDisconnect:
         pass
     finally:
         if character_id is not None:
+            await handle_disconnect(character_id)
             left = await manager.disconnect(character_id)
             if left is not None:
                 await manager.broadcast(

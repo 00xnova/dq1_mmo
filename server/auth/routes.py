@@ -206,6 +206,7 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
         if await c.fetchone():
             raise HTTPException(status_code=400, detail="Character name already taken")
 
+    from config import STARTING_GOLD
     from game.world_manager import SPAWN_X, SPAWN_Y
 
     cursor = await db.execute(
@@ -213,7 +214,7 @@ async def create_character(body: CharacterCreate, user: dict = Depends(get_curre
         INSERT INTO characters (user_id, name, world_x, world_y, gold)
         VALUES (?, ?, ?, ?, ?)
         """,
-        (user["id"], body.name, SPAWN_X, SPAWN_Y, "300"),
+        (user["id"], body.name, SPAWN_X, SPAWN_Y, str(STARTING_GOLD)),
     )
     await db.commit()
     async with db.execute("SELECT * FROM characters WHERE id = ?", (cursor.lastrowid,)) as c:

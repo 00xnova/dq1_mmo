@@ -21,7 +21,7 @@ end
 function Character:_reload()
   local list, err = Auth.list_characters()
   if not list then
-    self.error = err
+    self.error = tostring(err or "failed")
     self.list = {}
     self.status = nil
     return

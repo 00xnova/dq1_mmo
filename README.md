@@ -1,83 +1,73 @@
 # Dragon Quest 1 MMO
 
-Love2D client + FastAPI/WebSocket server. See [plan.md](plan.md) for full architecture.
+Love2D client + FastAPI/WebSocket server. Server-authoritative DQ1 combat.
 
-## Quick start (server)
+**Version:** 0.3.0
+
+## Quick start
 
 ```bash
+# Server
 cd server
-python3 -m venv .venv
-source .venv/bin/activate
+python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-python main.py
-```
+./run.sh
+# API: http://127.0.0.1:8000/docs
 
-Server: `http://127.0.0.1:8000`  
-Docs: `http://127.0.0.1:8000/docs`  
-WebSocket: `ws://127.0.0.1:8000/ws`
-
-### Auth API
-
-| Method | Path | Description |
-|--------|------|-------------|
-| POST | `/auth/register` | `{email, password, username}` → JWT |
-| POST | `/auth/login` | `{email, password}` → JWT |
-| GET | `/auth/me` | Bearer token → user |
-| GET | `/auth/characters` | list characters |
-| POST | `/auth/characters` | `{name}` create character |
-| GET | `/auth/google/login` | Google OAuth (if configured) |
-
-### Example
-
-```bash
-curl -s -X POST http://127.0.0.1:8000/auth/register \
-  -H 'Content-Type: application/json' \
-  -d '{"email":"hero@example.com","password":"password","username":"Hero"}'
-```
-
-## Client (Love2D)
-
-```bash
-# optional: link combat library
-ln -sfn ../../dq1-combat client/libs/dq1-combat
-
-# install love2d-lua-websocket into client/libs (for multiplayer)
+# Client (needs Love2D 11.x)
 love client
 ```
 
-Without the websocket library, login/character select still work over HTTP; overworld runs in local preview mode.
+Default login fields work after you register once (`hero@example.com` / `password`).
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| WASD / arrows | Move |
+| I | Inventory / shop (Tab in inventory) |
+| B | Debug slime fight (`ALLOW_DEBUG=1`) |
+| Combat: A / F / Enter | Attack / Flee / confirm |
+| Esc | Back / quit |
+
+## Features
+
+- Email/password auth + JWT (Google OAuth optional via env)
+- Grid overworld (town / field / water / walls)
+- Multiplayer presence (nearby players)
+- Random field encounters, DQ1 combat formulas
+- XP, level-ups, spells by level
+- Equipment, inventory, town shop
+- Defeat → town respawn, half gold
+- Client reconnect + HP/MP bars
+
+## Tests
+
+```bash
+cd server && source .venv/bin/activate
+python tests/run_tests.py
+```
 
 ## Layout
 
 ```
 client/     Love2D game
-server/     FastAPI + WebSocket
-shared/     items/enemies/spells stubs
-data/       SQLite database (gitignored)
-plan.md     implementation roadmap
+server/     FastAPI + WebSocket + combat engine
+shared/     dq1_data.json (enemies, spells, gear)
+data/       SQLite DB (gitignored)
+plan.md     original roadmap
 ```
 
-## Status
+## Env
 
-- [x] Phase 1 — project setup & auth
-- [x] Phase 2 — client foundation / websocket client
-- [x] Phase 3 — world map, collision, nearby multiplayer movement
-- [x] Phase 4 — server DQ1 combat, encounters, combat UI
-- [x] Phase 5 — equipment, inventory, town shop
-- [x] Phase 6 — HP/MP bars, reconnect, town shop gate, step validation
+See `.env.example`. Production tips:
 
-### Combat
+- Set a strong `SECRET_KEY`
+- `ALLOW_DEBUG=0` to disable forced encounters
+- Point `DATABASE_URL` at a durable path
 
-- Server-authoritative battles (DQ1 formulas from `dq1-combat`)
-- Random encounters on **field** tiles (not town)
-- Client: `B` forces a slime fight (debug)
-- Actions: `attack`, `flee`, `use_spell` over WebSocket
+## Protocol (WebSocket JSON)
 
-## Map tiles
+**Client → server:** `auth`, `move`, `attack`, `flee`, `use_spell`, `equip`, `unequip`, `buy`, `sell`, `shop`, `inventory`, `ping`
 
-| Code | Meaning |
-|------|---------|
-| 0 | grass / field |
-| 1 | wall |
-| 2 | town (safe) |
-| 3 | water (blocked) |
+**Server → client:** `auth_ok`, `world_state`, `player_moved`, `combat_start`, `combat_update`, `combat_end`, `level_up`, `inventory_update`, `shop_list`, `error`, `pong`
