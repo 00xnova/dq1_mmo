@@ -41,6 +41,18 @@ from network.websocket_manager import CHAT_MAX_LEN, manager
 _CTRL_RE = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f\x7f]")
 
 
+def _format_uptime(seconds: int) -> str:
+    """Human-readable uptime for /time (e.g. 1h 02m 03s)."""
+    s = max(0, int(seconds))
+    h, rem = divmod(s, 3600)
+    m, sec = divmod(rem, 60)
+    if h:
+        return f"{h}h {m:02d}m {sec:02d}s"
+    if m:
+        return f"{m}m {sec:02d}s"
+    return f"{sec}s"
+
+
 async def _inventory_msg(character_id: int) -> dict:
     from game.item_manager import MAX_BAG_SLOTS, MAX_STACK_QTY
 
@@ -203,11 +215,15 @@ async def handle_message(
         import time as _time
 
         client_t = data.get("t")
+        from config import PROCESS_STARTED_AT, VERSION as _VER
+
         pong_body: dict[str, Any] = {
             "t": client_t,
             "server_t": _time.time(),
             "online": len(manager.online_ids()),
             "zones": manager.zone_counts(),
+            "version": _VER,
+            "uptime": max(0, int(_time.time() - PROCESS_STARTED_AT)),
         }
         if character_id is not None:
             pong_body["nearby_count"] = len(manager.ids_nearby(character_id))
@@ -414,11 +430,21 @@ async def handle_message(
                 tid = int(target_id)
             except (TypeError, ValueError):
                 tid = None
-        if tid is None and isinstance(target_name, str):
+        if tid is None and isinstance(target_name, str) and target_name.strip():
             tid, nerr = manager.resolve_live_name(target_name)
             if nerr == "name ambiguous":
                 outbound.append(msg(ServerMessageType.ERROR, reason="name ambiguous"))
                 return character_id, user_id, outbound, None
+            if tid is None and nerr == "player not online":
+                # Named target resolved to nobody live — not "not found" (typo vs offline)
+                outbound.append(msg(ServerMessageType.ERROR, reason="player not online"))
+                return character_id, user_id, outbound, None
+        # Bare look / empty name → examine self (MVP social convenience)
+        if tid is None and (
+            target_name is None
+            or (isinstance(target_name, str) and not target_name.strip())
+        ):
+            tid = character_id
         if tid is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="player not found"))
             return character_id, user_id, outbound, None
@@ -457,7 +483,13 @@ async def handle_message(
         return character_id, user_id, outbound, None
 
     # --- Self status (lightweight sheet; no inventory dump) ---
-    if msg_type in (ClientMessageType.STATUS, ClientMessageType.ME, "status", "me"):
+    if msg_type in (
+        ClientMessageType.STATUS,
+        ClientMessageType.ME,
+        "status",
+        "me",
+        "whoami",
+    ):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -531,8 +563,8 @@ async def handle_message(
                     {"cmd": "whisper", "hint": "/w Name message (unique prefix OK)"},
                     {"cmd": "say", "hint": "/say · /s message — nearby chat"},
                     {"cmd": "find", "hint": "/find Name · /find zone:town · zone:field"},
-                    {"cmd": "status", "hint": "F or /status — self sheet"},
-                    {"cmd": "look", "hint": "L — examine a player"},
+                    {"cmd": "status", "hint": "F or /status · /me · /whoami — self sheet"},
+                    {"cmd": "look", "hint": "L — examine a player (bare = yourself)"},
                     {"cmd": "who", "hint": "O · /who · /players — online + zone counts"},
                     {"cmd": "near", "hint": "/near · /here — nearby heroes only"},
                     {"cmd": "zone", "hint": "/zone · /where — area + who is here"},
@@ -546,6 +578,12 @@ async def handle_message(
                     {"cmd": "ignore", "hint": "/ignore · /unignore · /ignores"},
                     {"cmd": "reply", "hint": "/r message — reply last whisper (server-tracked)"},
                     {"cmd": "roll", "hint": "/roll · /dice — 1d100 nearby"},
+                    {"cmd": "version", "hint": "/version · /about — server version"},
+                    {"cmd": "time", "hint": "/time · /uptime — server clock + uptime"},
+                    {"cmd": "motd", "hint": "/motd — message of the day"},
+                    {"cmd": "afk", "hint": "/afk · /away · /back — AFK badge"},
+                    {"cmd": "block", "hint": "/block · /unblock — same as ignore"},
+                    {"cmd": "quit", "hint": "/quit · /logout — leave the world"},
                 ],
                 channels=["global", "nearby", "zone", "whisper"],
                 version=__import__("config", fromlist=["VERSION"]).VERSION,
@@ -554,8 +592,125 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
+    # --- MOTD (multiplayer welcome blurb) ---
+    if msg_type in ("motd", "message_of_the_day", "rules"):
+        from config import MOTD, PROCESS_STARTED_AT, VERSION as _VER
+        import time as _time
+
+        if character_id is not None:
+            manager.touch(character_id)
+        outbound.append(
+            msg(
+                "motd",
+                text=str(MOTD)[:500],
+                version=_VER,
+                online=len(manager.online_ids()),
+                zones=manager.zone_counts(),
+                uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Manual AFK / away / back ---
+    if msg_type in ("afk", "away", "back"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        want_afk = msg_type in ("afk", "away")
+        if msg_type == "back":
+            want_afk = False
+        if msg_type == "afk" and (data.get("clear") or data.get("off")):
+            want_afk = False
+        # /afk with text "back" or explicit back
+        if msg_type == "afk" and str(
+            data.get("text") or data.get("mode") or ""
+        ).strip().lower() in (
+            "back",
+            "off",
+            "clear",
+            "0",
+            "false",
+        ):
+            want_afk = False
+        if not manager.set_afk(character_id, want_afk):
+            outbound.append(msg(ServerMessageType.ERROR, reason="not online"))
+            return character_id, user_id, outbound, None
+        if not want_afk:
+            manager.touch(character_id)
+        await manager.publish_status(character_id, pulse_online=True)
+        meta = manager.get_meta(character_id)
+        outbound.append(
+            msg(
+                "afk",
+                afk=want_afk,
+                idle=bool(meta and (meta.get("afk") or False)),
+                message=("You are now AFK." if want_afk else "Welcome back."),
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Graceful quit / logout (client should close socket after ack) ---
+    if msg_type in ("quit", "logout", "exit", "leave_world"):
+        if character_id is None:
+            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
+            return character_id, user_id, outbound, None
+        outbound.append(
+            msg(
+                "quit",
+                ok=True,
+                message="Farewell, hero.",
+                reason="quit",
+            )
+        )
+        # Soft disconnect after outbound is delivered by main loop
+        try:
+            await manager.disconnect(character_id, reason="quit")
+        except Exception:
+            pass
+        return None, user_id, outbound, None
+
+    # --- Server version / about (multiplayer ops + client HUD) ---
+    if msg_type in ("version", "ver", "about"):
+        from config import PROCESS_STARTED_AT, VERSION as _VER
+        import time as _time
+
+        if character_id is not None:
+            manager.touch(character_id)
+        outbound.append(
+            msg(
+                "version",
+                version=_VER,
+                online=len(manager.online_ids()),
+                zones=manager.zone_counts(),
+                uptime=max(0, int(_time.time() - PROCESS_STARTED_AT)),
+                service="dq1-mmo",
+            )
+        )
+        return character_id, user_id, outbound, None
+
+    # --- Server time / uptime ---
+    if msg_type in ("time", "uptime", "servertime", "clock"):
+        from config import PROCESS_STARTED_AT, VERSION as _VER
+        import time as _time
+
+        if character_id is not None:
+            manager.touch(character_id)
+        now = _time.time()
+        up = max(0, int(now - PROCESS_STARTED_AT))
+        outbound.append(
+            msg(
+                "time",
+                server_t=now,
+                uptime=up,
+                uptime_hms=_format_uptime(up),
+                version=_VER,
+                online=len(manager.online_ids()),
+            )
+        )
+        return character_id, user_id, outbound, None
+
     # --- Ignore / mute list (session soft-grace) ---
-    if msg_type in (ClientMessageType.IGNORE, "ignore", "mute"):
+    if msg_type in (ClientMessageType.IGNORE, "ignore", "mute", "block"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -592,7 +747,7 @@ async def handle_message(
         )
         return character_id, user_id, outbound, None
 
-    if msg_type in (ClientMessageType.UNIGNORE, "unignore", "unmute"):
+    if msg_type in (ClientMessageType.UNIGNORE, "unignore", "unmute", "unblock"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
@@ -1383,6 +1538,12 @@ async def handle_message(
         if manager.is_ignored_by(character_id, target_id):
             outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
             return character_id, user_id, outbound, None
+        meta_pre = manager.get_meta(character_id)
+        was_idle = False
+        if meta_pre is not None:
+            from network.websocket_manager import _is_idle as _idle_chk
+
+            was_idle = _idle_chk(meta_pre)
         allowed, retry = manager.allow_chat(character_id)
         if not allowed:
             outbound.append(
@@ -1419,6 +1580,8 @@ async def handle_message(
         # Target remembers us for their /r; we remember them if they reply later
         manager.note_whisper_from(target_id, character_id, name)
         manager.note_whisper_from(character_id, target_id, tname)
+        if was_idle:
+            await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
     # --- Chat: global / nearby AOI / zone (`say` defaults nearby) ---
@@ -1482,6 +1645,9 @@ async def handle_message(
             if manager.is_ignored_by(character_id, target_id):
                 outbound.append(msg(ServerMessageType.ERROR, reason="you ignore that player"))
                 return character_id, user_id, outbound, None
+            from network.websocket_manager import _is_idle as _idle_chk
+
+            was_idle_w = _idle_chk(meta) if meta else False
             allowed, retry = manager.allow_chat(character_id)
             if not allowed:
                 outbound.append(
@@ -1513,6 +1679,21 @@ async def handle_message(
             outbound.append(whisper_msg)
             manager.note_whisper_from(target_id, character_id, name)
             manager.note_whisper_from(character_id, target_id, tname)
+            if was_idle_w:
+                await manager.publish_status(character_id)
+            return character_id, user_id, outbound, None
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta) if meta else False
+        zone_name = None
+        if meta is not None:
+            try:
+                zone_name = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                zone_name = None
+        # Zone chat only from walkable social zones (not water/wall)
+        if channel == "zone" and zone_name not in ("town", "field", "dungeon"):
+            outbound.append(msg(ServerMessageType.ERROR, reason="not in a zone"))
             return character_id, user_id, outbound, None
         allowed, retry = manager.allow_chat(character_id)
         if not allowed:
@@ -1524,12 +1705,6 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
-        zone_name = None
-        if meta is not None:
-            try:
-                zone_name = zone_at(int(meta["x"]), int(meta["y"]))
-            except Exception:
-                zone_name = None
         chat_msg = msg(
             ServerMessageType.CHAT,
             player_id=character_id,
@@ -1556,6 +1731,8 @@ async def handle_message(
                 respect_ignore=True,
             )
         outbound.append(chat_msg)
+        if was_idle:
+            await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
     # --- Social roll (nearby 1d100 — multiplayer icebreaker) ---
@@ -1575,16 +1752,35 @@ async def handle_message(
             return character_id, user_id, outbound, None
         meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
-        # Optional sides: {type:roll, sides:20} default 100, clamp 2..1000
-        sides = data.get("sides") or data.get("d") or 100
+        # Optional sides: {type:roll, sides:20} default 100, must be 2..1000.
+        # Do NOT use `or` for default — sides=0 is falsy and used to become 100.
+        if "sides" in data:
+            raw_sides = data.get("sides")
+        elif "d" in data:
+            raw_sides = data.get("d")
+        else:
+            raw_sides = 100
         try:
-            sides_i = int(sides)
+            # bool is a subclass of int — reject True/False as dice sizes
+            if isinstance(raw_sides, bool):
+                raise ValueError("bool sides")
+            sides_i = int(raw_sides)
         except (TypeError, ValueError):
-            sides_i = 100
-        if sides_i < 2:
-            sides_i = 2
-        if sides_i > 1000:
-            sides_i = 1000
+            manager.refund_chat(character_id)
+            outbound.append(msg(ServerMessageType.ERROR, reason="invalid roll sides"))
+            return character_id, user_id, outbound, None
+        if sides_i < 2 or sides_i > 1000:
+            manager.refund_chat(character_id)
+            outbound.append(
+                msg(
+                    ServerMessageType.ERROR,
+                    reason="invalid roll sides",
+                    sides=sides_i,
+                    min=2,
+                    max=1000,
+                )
+            )
+            return character_id, user_id, outbound, None
         import random as _random
 
         value = _random.randint(1, sides_i)
@@ -1634,6 +1830,10 @@ async def handle_message(
         if emote not in allowed:
             outbound.append(msg(ServerMessageType.ERROR, reason="unknown emote"))
             return character_id, user_id, outbound, None
+        meta = manager.get_meta(character_id)
+        from network.websocket_manager import _is_idle as _idle_chk
+
+        was_idle = _idle_chk(meta) if meta else False
         # Soft rate limit via chat timer (social spam)
         ok_chat, retry = manager.allow_chat(character_id)
         if not ok_chat:
@@ -1645,8 +1845,13 @@ async def handle_message(
                 )
             )
             return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
         name = (meta or {}).get("name") or "Hero"
+        emote_zone = None
+        if meta is not None:
+            try:
+                emote_zone = zone_at(int(meta["x"]), int(meta["y"]))
+            except Exception:
+                emote_zone = None
         emote_msg = msg(
             ServerMessageType.EMOTE,
             player_id=character_id,
@@ -1655,11 +1860,15 @@ async def handle_message(
             x=(meta or {}).get("x"),
             y=(meta or {}).get("y"),
         )
+        if emote_zone in ("town", "field", "dungeon"):
+            emote_msg["zone"] = emote_zone
         # Peers via AOI; self via outbound (reliable single echo)
         await manager.broadcast_nearby(
             character_id, emote_msg, include_self=False, respect_ignore=True
         )
         outbound.append(emote_msg)
+        if was_idle:
+            await manager.publish_status(character_id)
         return character_id, user_id, outbound, None
 
     # --- Use consumable (herb / wings / fairy water) ---
@@ -1902,7 +2111,23 @@ async def handle_message(
             outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
             return character_id, user_id, outbound, None
         item_id = data.get("item") or data.get("item_id")
-        qty = data.get("quantity") or data.get("qty") or 1
+        # Explicit quantity parse — do not use `or 1` (qty=0 must not discard one)
+        if "quantity" in data:
+            raw_qty = data.get("quantity")
+        elif "qty" in data:
+            raw_qty = data.get("qty")
+        else:
+            raw_qty = 1
+        try:
+            if isinstance(raw_qty, bool):
+                raise ValueError("bool qty")
+            qty = int(raw_qty)
+        except (TypeError, ValueError):
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
+        if qty < 1:
+            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
+            return character_id, user_id, outbound, None
         if not item_id:
             outbound.append(msg(ServerMessageType.ERROR, reason="item required"))
             return character_id, user_id, outbound, None

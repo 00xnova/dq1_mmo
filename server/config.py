@@ -1,9 +1,13 @@
 import logging
 import os
 import secrets
+import time
 from pathlib import Path
 
 log = logging.getLogger("dq1.config")
+
+# Wall-clock process start (uptime /time for multiplayer ops)
+PROCESS_STARTED_AT = time.time()
 
 BASE_DIR = Path(__file__).resolve().parent
 ROOT_DIR = BASE_DIR.parent
@@ -60,7 +64,13 @@ STARTING_GOLD = os.getenv("STARTING_GOLD", "300")
 # Combat reconnect grace (seconds) — battle kept if player returns in time
 COMBAT_GRACE_SECONDS = float(os.getenv("COMBAT_GRACE_SECONDS", "60"))
 
-VERSION = "0.5.54"
+VERSION = "0.5.58"
+
+# Multiplayer message of the day (shown on /motd and optional join)
+MOTD = os.getenv(
+    "MOTD",
+    "Welcome to DQ1 MMO — share the overworld, fight fair, be kind.",
+)
 
 
 def new_secret_hint() -> str:

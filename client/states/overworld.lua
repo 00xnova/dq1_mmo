@@ -339,6 +339,44 @@ local function bind_handlers(self)
     end
   end)
 
+  Network.on("version", function(data)
+    local ver = tostring(data.version or "?")
+    local on = tonumber(data.online) or 0
+    local up = tonumber(data.uptime) or 0
+    self.net_info = "v" .. ver
+    UI.toast(string.format("Server v%s · %d online · up %ds", ver, on, up), "info")
+  end)
+
+  Network.on("time", function(data)
+    local hms = tostring(data.uptime_hms or ((data.uptime or 0) .. "s"))
+    local ver = data.version and (" · v" .. tostring(data.version)) or ""
+    UI.toast(string.format("Server uptime %s%s", hms, ver), "info")
+  end)
+
+  Network.on("motd", function(data)
+    local t = tostring(data.text or data.message or "…")
+    UI.toast(t, "info")
+    if data.version then
+      self.net_info = "v" .. tostring(data.version)
+    end
+  end)
+
+  Network.on("afk", function(data)
+    if data.afk then
+      UI.toast(tostring(data.message or "You are now AFK."), "info")
+    else
+      UI.toast(tostring(data.message or "Welcome back."), "info")
+    end
+  end)
+
+  Network.on("quit", function(data)
+    UI.toast(tostring(data.message or "Farewell, hero."), "info")
+    -- Graceful leave: close after short toast
+    if Network.disconnect then
+      Network.disconnect()
+    end
+  end)
+
   Network.on("ignore", function(data)
     local act = data.action or "?"
     if act == "list" then
@@ -949,7 +987,26 @@ function Overworld:keypressed(key)
         if not zmsg then
           zmsg = text:match("^[/%!]zone%s+(.+)$")
         end
-        local wants_status = text:match("^[/%!]status%s*$") or text:match("^[/%!]me%s*$")
+        local wants_status = text:match("^[/%!]status%s*$")
+          or text:match("^[/%!]me%s*$")
+          or text:match("^[/%!]whoami%s*$")
+        local wants_version = text:match("^[/%!]version%s*$")
+          or text:match("^[/%!]ver%s*$")
+          or text:match("^[/%!]about%s*$")
+        local wants_time = text:match("^[/%!]time%s*$")
+          or text:match("^[/%!]uptime%s*$")
+          or text:match("^[/%!]clock%s*$")
+        local wants_motd = text:match("^[/%!]motd%s*$")
+          or text:match("^[/%!]rules%s*$")
+        local wants_afk = text:match("^[/%!]afk%s*$")
+          or text:match("^[/%!]away%s*$")
+        local wants_back = text:match("^[/%!]back%s*$")
+          or text:match("^[/%!]afk%s+back%s*$")
+        local wants_quit = text:match("^[/%!]quit%s*$")
+          or text:match("^[/%!]logout%s*$")
+          or text:match("^[/%!]exit%s*$")
+        local block_name = text:match("^[/%!]block%s+(%S+)$")
+        local unblock_name = text:match("^[/%!]unblock%s+(%S+)$")
         local wants_who = text:match("^[/%!]who%s*$")
           or text:match("^[/%!]players%s*$")
           or text:match("^[/%!]online%s*$")
@@ -1009,6 +1066,22 @@ function Overworld:keypressed(key)
           Network.chat(zmsg, "zone")
         elseif wants_status then
           Network.request_status()
+        elseif wants_version then
+          Network.send({ type = "version" })
+        elseif wants_time then
+          Network.send({ type = "time" })
+        elseif wants_motd then
+          Network.send({ type = "motd" })
+        elseif wants_back then
+          Network.send({ type = "back" })
+        elseif wants_afk then
+          Network.send({ type = "afk" })
+        elseif wants_quit then
+          Network.send({ type = "quit" })
+        elseif block_name and block_name ~= "" then
+          Network.send({ type = "block", name = block_name })
+        elseif unblock_name and unblock_name ~= "" then
+          Network.send({ type = "unblock", name = unblock_name })
         elseif wants_who then
           Network.who()
         elseif wants_near then
@@ -1161,7 +1234,7 @@ function Overworld:keypressed(key)
   elseif key == "o" and not self.locked then
     Network.send({ type = "who" })
   elseif key == "l" and not self.locked then
-    -- Examine first nearby peer, else first roster entry
+    -- Examine first nearby peer, else first roster entry, else yourself
     local target = nil
     for _, p in pairs(World.players or {}) do
       if p and p.name then
@@ -1180,7 +1253,8 @@ function Overworld:keypressed(key)
     if target then
       Network.look(target)
     else
-      UI.toast("No one to look at", "danger")
+      -- Bare look → self (server accepts empty name as self)
+      Network.send({ type = "look" })
     end
   elseif key == "k" and not self.locked then
     local fs = Session.character and Session.character.field_spells or {}

@@ -9,7 +9,13 @@ For **people**: players, operators, and human contributors.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** (skip if you just want to play) |
 
-**Version:** 0.5.54 · **232** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
+<p align="center">
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.58-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-260-059669?style=flat-square" />
+  <img alt="audience" src="https://img.shields.io/badge/audience-humans-2563eb?style=flat-square" />
+</p>
+
+**Version:** 0.5.58 · **260** tests · **humans here** · agents → [AGENTS.md](../AGENTS.md) only
 
 ---
 
@@ -22,7 +28,7 @@ A multiplayer **Dragon Quest I–style** game:
 - Server-side combat (attack, magic, flee, herbs)
 - Town **inn** and **field magic**
 - Chat: **global**, **nearby**, **zone**, **whisper**, and **system** (level-ups · zone-enter · fights · defeats)
-- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, online roster (idle/AFK), status sheet (**F** / `/status`)
+- Emotes, **look**, **`/find`**, **`/who`** · **`/players`** · **`/near`** · **`/zone`** · **`/counts`**, **`/roll`**, **`/ignore`**, **`/r`** reply, **`/version`** · **`/time`**, online roster (idle/AFK clears when you chat), status sheet (**F** / `/status` / `/whoami`)
 - Join toast with **online count** when you enter the world
 - Shop, gear (through Full Plate / Silver Shield · sell-back toasts), **bag limits** (12 kinds · 8 each · **D** discard), swappable PNG art
 - Up to **3 heroes** per account (create / delete)
@@ -137,7 +143,13 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/counts** · **/census** | Online + nearby + zone population totals |
 | **E** | Cycle emotes (wave, bow, cheer, dance, …) |
 | **F** | Status sheet — refreshes from server (stats, gear, EXP, spells, zone, buffs) |
-| **/status** or **/me** | Same status sheet via chat |
+| **/status** or **/me** or **/whoami** | Same status sheet via chat |
+| **/version** · **/about** | Server version + online count + uptime |
+| **/time** · **/uptime** | Server clock and how long the world has been up |
+| **/motd** · **/rules** | Message of the day |
+| **/afk** · **/away** · **/back** | Show AFK on the roster (clears when you chat or move) |
+| **/block Name** · **/unblock Name** | Same as ignore / unignore |
+| **/quit** · **/logout** | Leave the world gracefully |
 | **/find Name** | Search who’s online by name prefix (zone type only — no positions) |
 | **/find Name zone:field** | Same, limited to town / field / dungeon |
 | **/find zone:town** | List everyone in that zone (still no map positions) |
@@ -152,7 +164,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/r message** | Reply to the last whisper you got (works even after a brief reconnect) |
 | **/** | Open chat ready for a slash command |
 | **O** or **P** / **Tab** | Who’s online · nearby list *(zone counts on who)* · `/players` same as `/who` |
-| **L** | Look at a nearby (or roster) adventurer |
+| **L** | Look at a nearby (or roster) adventurer — alone, looks at yourself |
 | **C** | Toggle chat panel |
 
 **HUD:** nearby · online · **repel N** · **light N** (Radiant) when active.  
@@ -165,7 +177,8 @@ Roster updates also keep **town / field / dungeon** counts so you can see where 
 Your own chat and emotes always appear once in your log (global, nearby, and zone).  
 Failed whispers (yourself, offline targets, or a dropped connection) do not block the next message you try to send.
 
-**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.
+**Brief disconnects (~1 minute):** your **mute list**, **last whisper partner** (so **`/r`** still works), and **Repel / Radiant** buffs come back when you rejoin. Other players see a cleaner join/leave when someone reconnects.  
+Chatting, whispering, or emoting clears your **AFK** badge for people nearby. **Zone chat** only works while you are in town, field, or dungeon.
 
 Chat tags in the log:
 
@@ -250,7 +263,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 232 passed
+# expect: 252 passed
 ```
 
 ---
@@ -262,9 +275,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | **You (human)** | This file + [README](../README.md) | Install, controls, gameplay, hosting, art swap |
 | **Coding agents / LLMs** | [AGENTS.md](../AGENTS.md) **only** | WebSocket protocol, reliability rules, test matrix |
 
+You do **not** need agent docs to play or host.  
+Agents should **not** copy protocol tables into this guide.
+
 | Do | Don’t |
 |:---|:------|
 | Link to AGENTS if a developer needs the protocol | Paste protocol tables into this guide |
-| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/counts` `/find` `/who` `/players` `/near` `/zone` `/ignore` `/status`) | Document unfinished features as shipped |
+| Keep slash-commands accurate (`/w` `/z` `/say` `/g` `/roll` `/counts` `/find` `/who` `/players` `/near` `/zone` `/version` `/time` `/ignore` `/status`) | Document unfinished features as shipped |
 
 Index & rules → [docs/README.md](README.md)

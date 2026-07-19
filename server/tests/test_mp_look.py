@@ -102,10 +102,10 @@ def test_look_nearby_and_far(tmp_path, monkeypatch):
                 assert p["nearby"] is True
                 assert "x" in p and "y" in p
 
-                # Missing player
+                # Missing / offline player (live resolve — not online)
                 await wa.send(json.dumps({"type": "look", "name": "Nobody"}))
                 err = await recv_until(wa, "error")
-                assert err["reason"] == "player not found"
+                assert err["reason"] in ("player not online", "player not found"), err
 
                 # by id
                 await wa.send(

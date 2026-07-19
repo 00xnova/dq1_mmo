@@ -616,42 +616,62 @@ def test_field_shop_and_inn_rejected(tmp_path, monkeypatch):
                 )
                 await recv_until(ws, "auth_ok")
                 await recv_until(ws, "world_state")
+                # Walk town → field (retry steps under encounter/rate noise)
                 path = [(2, 3), (3, 3), (4, 3), (5, 3), (6, 3)]
                 seq = 0
                 for x, y in path:
-                    seq += 1
-                    await asyncio.sleep(0.15)
-                    await ws.send(
-                        json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
-                    )
-                    m = await recv_until(ws, "move_ok", "error", "combat_start")
-                    if m.get("type") == "combat_start":
-                        for _ in range(12):
-                            await ws.send(json.dumps({"type": "flee"}))
-                            try:
-                                mf = await recv_until(
-                                    ws,
-                                    "combat_end",
-                                    "combat_update",
-                                    "error",
-                                    timeout=1,
-                                )
-                                if mf.get("type") == "combat_end" or mf.get(
-                                    "outcome"
-                                ) == "fled":
-                                    break
-                            except TimeoutError:
-                                pass
-                        await drain(ws)
+                    for attempt in range(6):
                         seq += 1
-                        await asyncio.sleep(0.15)
+                        await asyncio.sleep(0.16)
                         await ws.send(
                             json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
                         )
-                        await recv_until(ws, "move_ok", "error", "combat_start")
+                        m = await recv_until(
+                            ws, "move_ok", "error", "combat_start", timeout=3
+                        )
+                        if m.get("type") == "combat_start":
+                            for _ in range(16):
+                                await ws.send(json.dumps({"type": "flee"}))
+                                try:
+                                    mf = await recv_until(
+                                        ws,
+                                        "combat_end",
+                                        "combat_update",
+                                        "error",
+                                        timeout=1,
+                                    )
+                                    if mf.get("type") == "combat_end" or mf.get(
+                                        "outcome"
+                                    ) == "fled":
+                                        break
+                                except TimeoutError:
+                                    pass
+                            await drain(ws)
+                            continue
+                        if m.get("type") == "move_ok" and m.get("ok") is not False:
+                            # reached this step
+                            if int(m.get("x", -1)) == x and int(m.get("y", -1)) == y:
+                                break
+                            if m.get("duplicate"):
+                                break
+                        # rate/reject — retry same tile
+                    else:
+                        pass  # best-effort; assert zone below
 
                 await ws.send(json.dumps({"type": "sync"}))
                 snap = await recv_until(ws, "world_state")
+                # If still in town, force-walk remaining field tiles once more
+                if snap.get("zone") != "field":
+                    for x, y in path:
+                        seq += 1
+                        await asyncio.sleep(0.16)
+                        await ws.send(
+                            json.dumps({"type": "move", "x": x, "y": y, "seq": seq})
+                        )
+                        await recv_until(ws, "move_ok", "error", "combat_start", timeout=3)
+                        await drain(ws, 0.08)
+                    await ws.send(json.dumps({"type": "sync"}))
+                    snap = await recv_until(ws, "world_state")
                 assert snap.get("zone") == "field", snap
 
                 await ws.send(json.dumps({"type": "shop"}))

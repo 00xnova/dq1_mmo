@@ -4,6 +4,10 @@
 > Humans use [README.md](README.md) and [docs/HUMAN.md](docs/HUMAN.md) — never send players here first.  
 > Do **not** copy protocol tables, reliability rule lists, or test matrices into README / HUMAN.
 
+| Humans (do not use this file first) | Agents (you) |
+|:------------------------------------|:-------------|
+| [README.md](README.md) · [docs/HUMAN.md](docs/HUMAN.md) · [docs/README.md](docs/README.md) · [ATTRIBUTION](client/assets/ATTRIBUTION.md) | **This file only** for protocol · hot paths · tests · reliability |
+
 You are editing this multiplayer game. Prefer this file over guessing.
 
 ## Scope
@@ -16,7 +20,7 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT, equip/shop/sell/discard (bag caps), consumables, inn, field magic (radiant), XP, UI + PNGs | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace (buffs/ignore/last whisper) · AOI self-heal · online/health/find zones · buy/sell gold feedback · combat outcome system chat · zone on presence · `/players` · `/near` · `/zone` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.54` (`server/config.py` → `VERSION`) · **232** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.58` (`server/config.py` → `VERSION`) · **260** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
@@ -254,6 +258,19 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 87. `manager.refund_chat(cid)` clears `last_chat_at` after failed multiplayer delivery.
 88. Combat soft-reconnect: after `connect`, if `in_combat` → `publish_status(..., pulse_online=True)`.
 89. `player_left` on disconnect includes `session_id` from leaving meta when present.
+90. Bare `look` (no name/id) examines **self**; empty name string same.
+91. `version`/`ver`/`about` → `{version, online, zones, uptime, service}`; `time`/`uptime` → clock + `uptime_hms`.
+92. `whoami` is a status alias; `pong` and `/health` include `version` + `uptime` (`PROCESS_STARTED_AT`).
+93. Roll `sides`: never use `or` default (0 is falsy); valid range **2..1000** or `invalid roll sides` + `refund_chat`.
+94. Discard `quantity`: never use `or 1` (0 must error `bad quantity`, not destroy one unit).
+95. Look named offline → `player not online` (not `player not found`); bare look still self.
+96. `_online_card` / `_public_meta` include `session_id` when set (roster reconnect hygiene).
+97. Social activity (chat/whisper/emote) that clears idle → `publish_status` so AOI peers drop AFK.
+98. Zone chat only from town/field/dungeon; otherwise `not in a zone` (no rate burn).
+99. Emote payloads include `zone` when known.
+100. `motd` / `rules` → MOTD text + version/online/zones/uptime (`config.MOTD`).
+101. `afk`/`away` sets `meta.afk`; `back` clears; `_is_idle` true when afk; chat/move clears afk.
+102. `block`/`unblock` aliases for ignore/unignore; `quit`/`logout` ack then `disconnect(reason=quit)`.
 
 ## Tests (mandatory for your changes)
 
@@ -308,6 +325,10 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_expand_v0552` | unique name prefix whisper; ambiguous; leave zone; auth nearby/zones |
 | `tests.test_adversarial_v0553` | look zone when far; look ambiguous prefix; empty chat then real chat |
 | `tests.test_mp_reliability_v0554` | session_id on presence; chat refund; soft-grace ignores/last_whisper on auth |
+| `tests.test_features_v0555` | bare look self; version/about; time/uptime; whoami; pong+health uptime |
+| `tests.test_adversarial_v0556` | roll sides=0 not d100; invalid sides; discard qty=0 no burn |
+| `tests.test_mp_reliability_v0557` | look offline reason; roster session_id; idle clear on chat; zone gate; emote zone |
+| `tests.test_features_v0558` | motd; afk/back; block alias; quit leave; help cmds; chat clears afk |
 | `tests.test_mp_reliability_v0540` | zone on presence, live zone chat, roster sort, /players alias |
 | `tests.test_features_v0541` | shop blocked in combat; broad_sword/half_plate shop |
 | `tests.test_mp_expand_v0542` | live name resolve, /near, auth welcome, who.nearby_count |

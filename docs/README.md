@@ -3,8 +3,17 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.54** (2026-07-19) · suite green **232** tests · `VERSION` in `server/config.py`  
-**Rule:** humans never need protocol files; agents never treat README as the contract.
+**Last docs refresh:** **v0.5.57** (2026-07-19) · suite green **252** tests · `VERSION` in `server/config.py`  
+
+| Audience | May read | Must not treat as contract |
+|:---------|:---------|:---------------------------|
+| **Humans** | README · HUMAN · ATTRIBUTION · this map | `AGENTS.md` protocol tables |
+| **Agents / LLMs** | **`AGENTS.md` first** | README / HUMAN as the API |
+
+| Rule | |
+|:-----|:--|
+| **Humans** | never need protocol / test-matrix files |
+| **Agents** | never treat README or HUMAN as the contract |
 
 ---
 
@@ -52,6 +61,9 @@ Do not copy protocol tables, test matrices, or reliability rule lists into playe
 - Join welcome may mention nearby heroes
 - Soft reconnect: mute list, last whisper partner, and buffs survive a brief disconnect
 - Failed private messages do not block your next chat line
+- `/version` · `/time` · `/whoami` · bare **L** looks at yourself
+- AFK badge clears when you chat/emote; zone chat only in town/field/dungeon
+- Safer `/roll` dice sizes · discard won’t remove items on quantity 0
 - CC0 pixel art + SVG companions
 
 ---

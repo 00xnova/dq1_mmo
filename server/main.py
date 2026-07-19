@@ -58,6 +58,10 @@ app.include_router(auth_router)
 
 @app.get("/health")
 async def health():
+    import time as _time
+
+    from config import PROCESS_STARTED_AT
+
     return {
         "status": "ok",
         "service": "dq1-mmo",
@@ -65,6 +69,7 @@ async def health():
         "online": len(manager.online_ids()),
         "zones": manager.zone_counts(),
         "combats": len(combat_engine.active),
+        "uptime": max(0, int(_time.time() - PROCESS_STARTED_AT)),
     }
 
 
@@ -130,6 +135,14 @@ async def websocket_endpoint(websocket: WebSocket):
                 "examine",
                 "status",
                 "me",
+                "whoami",
+                "version",
+                "ver",
+                "about",
+                "time",
+                "uptime",
+                "servertime",
+                "clock",
                 "find",
                 "search",
                 "help",
@@ -139,6 +152,8 @@ async def websocket_endpoint(websocket: WebSocket):
                 "ignores",
                 "mute",
                 "unmute",
+                "block",
+                "unblock",
                 "ignore_list",
                 "reply",
                 "roll",
@@ -148,6 +163,16 @@ async def websocket_endpoint(websocket: WebSocket):
                 "drop",
                 "destroy",
                 "throw_away",
+                "motd",
+                "message_of_the_day",
+                "rules",
+                "afk",
+                "away",
+                "back",
+                "quit",
+                "logout",
+                "exit",
+                "leave_world",
             )
             if character_id is not None and msg_type not in _exempt:
                 if not manager.allow_message(character_id):

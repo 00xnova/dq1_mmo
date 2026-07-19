@@ -10,9 +10,9 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.54-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.57-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-232_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-252_passing-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -46,6 +46,14 @@
 
 Explore **town**, **field**, and **dungeon** with other heroes on a shared grid.  
 Fight server-authoritative 1v1 battles, rest at the **inn**, cast **field magic**, shop for gear (limited bag · discard), and socialize — global / nearby / zone chat, whispers (unique name prefixes), **`/r`**, **`/find`**, **`/who`** · **`/counts`** · **`/zone`**, **`/roll`**, emotes, and look.
+
+<p align="center">
+  <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
+  <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/chat-global_·_near_·_zone_·_whisper-8b5cf6?style=flat-square" />
+  <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
+  <img alt="art" src="https://img.shields.io/badge/art-CC0_drop--in_PNGs-10b981?style=flat-square" />
+</p>
 
 > [!NOTE]
 > **Fan project.** Inspired by *Dragon Quest I / Dragon Warrior*. **Not** affiliated with Square Enix.
@@ -82,7 +90,7 @@ protocol · tests · not for players
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.54** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.57** |
 | ✨ | [Highlights](#-highlights) |
 | 🚀 | [Quick start](#-quick-start) |
 | 🎮 | [Controls](#-controls) |
@@ -98,17 +106,19 @@ protocol · tests · not for players
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.54-7c3aed?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-232_passing-059669?style=flat-square" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.57-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-252_passing-059669?style=flat-square" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=flat-square" />
 </p>
 
-| | **v0.5.54** |
+| | **v0.5.57** |
 |:--|:--|
-| 🔄 | **Brief disconnects** keep your mute list, last whisper partner, and buffs so **`/r`** still works after you rejoin |
-| 💬 | Failed private messages no longer “eat” your next chat attempt |
-| 👀 | Other players see cleaner join / leave presence when people reconnect mid-session |
-| ✅ | **232** automated tests |
+| 💤 | Chatting or emoting **clears your AFK** badge for nearby heroes |
+| 🗺️ | **Zone chat** only works in town / field / dungeon (not on walls or water) |
+| 👀 | Looking up someone who is offline says so clearly |
+| ℹ️ | **`/version`** · **`/time`** · **`/whoami`** · bare **L** looks at yourself |
+| 🎲 | Safer **`/roll`** (bad dice sizes rejected) · discard won’t eat items on qty 0 |
+| ✅ | **252** automated tests |
 
 <details>
 <summary><b>Earlier releases</b></summary>
@@ -117,14 +127,15 @@ protocol · tests · not for players
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.53** | Look always shows zone · empty chat no longer blocks the next line |
-| **0.5.52** | Whisper / look / ignore **unique name prefixes** · join welcome may mention nearby |
-| **0.5.51** | Inn: **R** quotes cost, **R again** to rest · bag-full buy tips |
+| **0.5.56** | Roll sides & discard quantity edge-case fixes |
+| **0.5.55** | `/version` · `/time` · `/whoami` · bare look = self |
+| **0.5.54** | Soft reconnect: mute list · `/r` partner · buffs · safer whispers |
+| **0.5.53** | Look always shows zone · empty chat does not block next line |
+| **0.5.52** | Whisper / look / ignore **unique name prefixes** |
+| **0.5.51** | Inn: **R** quotes cost, **R again** to rest |
 | **0.5.50** | `/counts` · victory/flee/defeat notices · idle leave |
-| **0.5.49** | Discard (**D**) · bag used/max UI |
-| **0.5.48** | `/roll` · fight notices · safer whispers |
-| **0.5.46–47** | Bag limits · reserved names · `/say` `/g` `/emote` |
-| **0.5.40–45** | `/zone` · `/near` · `/players` · presence · open art |
+| **0.5.48–49** | `/roll` · discard (**D**) · bag used/max |
+| **0.5.40–47** | Zone social · bag limits · presence · open art |
 
 </details>
 
@@ -159,7 +170,8 @@ protocol · tests · not for players
 | | |
 |:--|:--|
 | 💬 | Global · nearby · **zone** · whisper (prefix) · **`/r`** · emotes · **`/roll`** |
-| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/ignore`** · look |
+| 🔍 | **`/find`** · **`/who`** · **`/counts`** · **`/near`** · **`/zone`** · **`/version`** · look |
+| 🔄 | Soft reconnect — mute list · **`/r`** · buffs · AFK clears when you talk |
 | 🦸 | Up to **3 heroes** · create / delete · XP to next |
 | 🎨 | Drop-in PNGs · Kenney + Tiny Creatures **CC0** |
 
@@ -173,7 +185,10 @@ protocol · tests · not for players
 | **Bag** | **12** stacks · **8** each · **D** discard · sell/buy in town |
 | **HUD** | HP/MP · gold · zone · your position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · presence repair · **232** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · presence repair · **252** tests |
+
+> [!TIP]
+> **Docs stay split on purpose.** Players start with this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
 
 **Not in this MVP:** parties · PvP · trade · quests · multi-map worlds.
 
@@ -219,7 +234,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 232 passed
+# expect: 252 passed
 ```
 
 ---
@@ -245,7 +260,9 @@ python tests/run_tests.py
 | **/who** · **/players** | Online + nearby + zones (**O**) |
 | **/near** · **/here** | Heroes in view |
 | **/zone** · **/where** | Your area + who is here |
-| **/status** · **/me** · **F** | Status sheet |
+| **/status** · **/me** · **/whoami** · **F** | Status sheet |
+| **/version** · **/about** | Server version + uptime |
+| **/time** · **/uptime** | Server clock + uptime |
 | **/ignore** · **/unignore** · **/ignores** | Mute list |
 | **/r message** | Reply last whisper |
 | **/inn** · **/rest** | Inn cost quote |
@@ -253,7 +270,7 @@ python tests/run_tests.py
 | **R** | Inn quote → **R** again to stay *(town)* |
 | **H** / **M** | Field heal / cycle field spells |
 | **K** | List spells |
-| **L** | Look at a player |
+| **L** | Look at a player (alone → yourself) |
 | **I** | Inventory / shop |
 | **Esc** | Disconnect & quit |
 
@@ -314,6 +331,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/counts` · `/census` | Online + zone population |
 | `/find Name` · `/find zone:field` | Search (zone type only, no coords) |
 | `/who` · `/players` · `/near` · `/zone` | Rosters & area info |
+| `/version` · `/about` · `/time` · `/whoami` | Server info · self sheet alias |
 | `/ignore` · `/unignore` · `/ignores` | Mute list |
 | `/r message` | Reply last whisper |
 | `/inn` · `/rest` | Inn cost quote |
@@ -402,12 +420,19 @@ dq1_mmo/
   <img alt="humans" src="https://img.shields.io/badge/humans-README_+_HUMAN.md-2563eb?style=for-the-badge" />
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
+  &nbsp;
+  <img alt="suite" src="https://img.shields.io/badge/suite-252_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
   <b>Human</b> docs and <b>agent / LLM</b> docs stay separate on purpose.<br/>
   <sub>Players never need the protocol file. Agents should not treat the README as the contract.</sub>
 </p>
+
+> [!IMPORTANT]
+> **Two audiences, two trees.**  
+> Play / host / art → this README + [docs/HUMAN.md](docs/HUMAN.md) + [ATTRIBUTION](client/assets/ATTRIBUTION.md).  
+> Code agents → **[AGENTS.md](AGENTS.md) only** (protocol · tests · reliability).
 
 <table>
 <tr>
@@ -469,10 +494,16 @@ Agents → AGENTS.md ONLY
 ---
 
 <p align="center">
+  <img alt="v" src="https://img.shields.io/badge/v0.5.57-7c3aed?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/252_tests-059669?style=flat-square" />
+  <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=flat-square" />
+</p>
+
+<p align="center">
   <sub>
-    <b>v0.5.54</b> · 232 tests · humans ↔ agents docs stay separate ·
     <a href="docs/HUMAN.md">Player guide</a> ·
     <a href="AGENTS.md">Agent contract</a> ·
-    <a href="docs/README.md">Docs map</a>
+    <a href="docs/README.md">Docs map</a> ·
+    <a href="client/assets/ATTRIBUTION.md">Art</a>
   </sub>
 </p>

@@ -53,10 +53,16 @@ def _public_meta(meta: dict[str, Any]) -> dict[str, Any]:
     z = _zone_of(meta)
     if z:
         pub["zone"] = z
+    sid = meta.get("session_id")
+    if sid is not None:
+        pub["session_id"] = sid
     return pub
 
 
 def _is_idle(meta: dict[str, Any], now: float | None = None) -> bool:
+    """AFK badge: manual /afk flag or soft inactivity timeout."""
+    if meta.get("afk"):
+        return True
     now = now if now is not None else time.monotonic()
     last = float(meta.get("last_seen") or 0.0)
     return (now - last) >= IDLE_SOFT
@@ -66,6 +72,7 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
     """Public roster entry (no position — avoid map radar abuse).
 
     Zone name is OK (town/field/dungeon) without x/y — helps social find/who.
+    session_id helps clients reconcile reconnects without map coords.
     """
     card = {
         "id": meta["id"],
@@ -77,6 +84,9 @@ def _online_card(meta: dict[str, Any]) -> dict[str, Any]:
     zone = _zone_of(meta)
     if zone:
         card["zone"] = zone
+    sid = meta.get("session_id")
+    if sid is not None:
+        card["session_id"] = sid
     return card
 
 
@@ -208,6 +218,7 @@ class ConnectionManager:
                 "ignore_names": grace_ignore_names,  # tid -> name for offline display
                 "last_whisper_from_id": grace_whisper_id,
                 "last_whisper_from_name": grace_whisper_name,
+                "afk": False,  # manual /afk — cleared on back / activity
             }
             # Live again — drop any leftover grace bag
             self._soft_grace.pop(character_id, None)
@@ -379,6 +390,8 @@ class ConnectionManager:
         meta = self._meta.get(character_id)
         if meta is not None:
             meta["last_seen"] = time.monotonic()
+            # Passive activity (move/ping/who) does not clear manual /afk —
+            # only chat/emote/allow_chat or explicit /back.
 
     def allow_message(self, character_id: int) -> bool:
         meta = self._meta.get(character_id)
@@ -401,8 +414,9 @@ class ConnectionManager:
         if elapsed < MOVE_MIN_INTERVAL:
             return False, MOVE_MIN_INTERVAL - elapsed
         meta["last_move_at"] = now
-        # Moving is activity — keep idle/AFK badges honest under pure walk spam
+        # Moving is activity — clear soft idle + manual AFK
         meta["last_seen"] = now
+        meta["afk"] = False
         return True, 0.0
 
     def set_level(self, character_id: int, level: int) -> None:
@@ -640,7 +654,18 @@ class ConnectionManager:
         meta["last_chat_at"] = now
         # Chatting is activity (same as move) for idle/AFK badges
         meta["last_seen"] = now
+        meta["afk"] = False
         return True, 0.0
+
+    def set_afk(self, character_id: int, afk: bool) -> bool:
+        """Toggle manual AFK flag. Returns False if not online."""
+        meta = self._meta.get(character_id)
+        if meta is None:
+            return False
+        meta["afk"] = bool(afk)
+        if not afk:
+            meta["last_seen"] = time.monotonic()
+        return True
 
     def refund_chat(self, character_id: int) -> None:
         """Undo the last allow_chat stamp (failed whisper delivery, etc.).

@@ -271,10 +271,14 @@ function Network.emote(emote)
 end
 
 function Network.look(name_or_id)
+  if name_or_id == nil or name_or_id == "" then
+    -- bare look → server examines self
+    return Network.send({ type = "look" })
+  end
   if type(name_or_id) == "number" then
     return Network.send({ type = "look", player_id = name_or_id })
   end
-  return Network.send({ type = "look", name = tostring(name_or_id or "") })
+  return Network.send({ type = "look", name = tostring(name_or_id) })
 end
 
 --- Request self status sheet from server (HP/MP/gear/zone/buffs).
