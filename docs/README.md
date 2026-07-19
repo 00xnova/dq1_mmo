@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.124** (2026-07-19) · suite **642** tests · restored.played / session timer welcome · humans ≠ agents
+**Last docs refresh:** **v0.5.125** (2026-07-19) · suite **648** tests · `/ignores` near/far · soft reconnect mute list · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|

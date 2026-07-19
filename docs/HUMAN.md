@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.124-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-642-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.125-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-648-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.124 · **642** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.125 · **648** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.124):** after a brief disconnect the welcome may list **Restored: session timer** (and social peers / buffs) · first join never fakes a restore · **642** tests.
+**Recent for players/ops (v0.5.125):** **`/ignores`** shows whether muted heroes are online and **near or far** · soft reconnect still restores the mute list · **648** tests.
 
 ---
 
@@ -188,7 +188,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/help** or **?** | Server list of commands / keys |
 | **/ignore Name** | Mute chat/emotes from that hero |
 | **/unignore Name** | Stop ignoring |
-| **/ignores** · **/blocklist** | List who you are ignoring (names stay if they log off) |
+| **/ignores** · **/blocklist** | List who you are ignoring (online near/far · names stay if they log off) |
 | **/inspect Name** · **/profile Name** · **/card Name** · **/whereis Name** | Same as look / examine |
 | **/who** | Online / nearby + zone counts + AFK / combat peeks (same as **O**) |
 | **/players** | Same as `/who` |
@@ -323,7 +323,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 642 passed
+# expect: 648 passed
 ```
 
 ---
@@ -337,7 +337,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.124** · **642** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.125** · **648** tests).
 
 | Do | Don’t |
 |:---|:------|
