@@ -594,7 +594,8 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
-| **0.5.149** | town `/inn` · `/rest` · quote · AFK clear · **798** tests |
+| **0.5.149** | `/use` herb · wings · fairy water · AFK clear · combat turn · **798** tests |
+| **0.5.148** | town `/inn` · `/rest` · quote · AFK clear · **791** tests |
 | **0.5.147** | `/bag` · `/equip` · `/discard` · AFK clear · combat gate · **784** tests |
 | **0.5.146** | town `/shop` · `/buy` · `/sell` · AFK clear · qty safe · **776** tests |
 | **0.5.145** | `/s` · `/g` · `/yell` chat · mute · private whisper path · **767** tests |
@@ -1259,7 +1260,7 @@ flowchart LR
   <img alt="tests" src="https://img.shields.io/badge/798_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="inn" src="https://img.shields.io/badge/inn-/rest_·_quote-14b8a6?style=for-the-badge" />
+  <img alt="use" src="https://img.shields.io/badge/items-/use-a855f7?style=for-the-badge" />
 </p>
 
 <p align="center">
