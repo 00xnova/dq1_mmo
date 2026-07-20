@@ -28,7 +28,7 @@ Human “What’s new” should use plain language (no `session_id` / message-ty
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
 Keep badges at **0.5.151** / **822** until the suite or `VERSION` changes.  
-Last **pushed** ship: *(pending)* (v0.5.151 combat).
+Last **pushed** ship: `6a3c9f6` (v0.5.151).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
 Docs pass (**this run**): badges **0.5.151 / 822** · combat extract · human ≠ agent · no protocol dumps.
 
