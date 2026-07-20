@@ -12,12 +12,9 @@ from game import formulas as F
 from game.item_manager import (
     REPEL_STEPS,
     character_public,
-    discard_item,
-    equip_item,
     equipment_bonuses,
     list_items,
     resolve_item_id,
-    unequip_item,
     use_consumable,
 )
 from game.player_manager import apply_character_patch, get_character, inn_cost, rest_at_inn
@@ -41,6 +38,7 @@ from network.handlers import emote as emote_handlers
 from network.handlers import invite as invite_handlers
 from network.handlers import invite_cancel as invite_cancel_handlers
 from network.handlers import invite_reply as invite_reply_handlers
+from network.handlers import inventory as inventory_handlers
 from network.handlers import shop as shop_handlers
 from network.handlers import whisper as whisper_handlers
 from network.handlers import look as look_handlers
@@ -272,7 +270,13 @@ async def handle_message(
     if shop_peek is not None:
         return shop_peek
 
-    # peeks + social private + invite/emote/whisper/chat/shop via handlers
+    inv_peek = await inventory_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if inv_peek is not None:
+        return inv_peek
+
+    # peeks + social private + invite/emote/whisper/chat/shop/inventory via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -1133,131 +1137,7 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.REST_OK, preview=False, character=char, **info))
         return character_id, user_id, outbound, None
 
-    # --- Inventory / equip (shop/buy/sell via network.handlers.shop) ---
-    if msg_type in (ClientMessageType.INVENTORY, "inventory", "bag", "inv", "items"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        outbound.append(await _inventory_msg(character_id))
-        return character_id, user_id, outbound, None
-
-    if msg_type in (ClientMessageType.EQUIP, "equip", "wear", "wield"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        slot = data.get("slot")
-        item_raw = data.get("item") or data.get("item_id")
-        item_id, item_err = _resolve_item_arg(item_raw) if item_raw else (None, "item required")
-        if item_err or not item_id:
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason=item_err or "item required")
-            )
-            return character_id, user_id, outbound, None
-        # Auto-slot from equipment def when client only sends item (slash /equip club)
-        if (not slot or not str(slot).strip()) and item_id:
-            from game.item_manager import get_equipment_def
-
-            defn = get_equipment_def(str(item_id).strip())
-            if defn and defn.get("slot"):
-                slot = defn.get("slot")
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        async with db_write() as db:
-            ok, reason = await equip_item(db, char, str(slot or ""), str(item_id or ""))
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        was_afk = manager.mark_active(character_id)
-        if was_afk:
-            await manager.publish_status(character_id, pulse_online=True)
-        inv = await _inventory_msg(character_id)
-        inv["equipped"] = {"slot": str(slot or ""), "item_id": str(item_id or "")}
-        inv["message"] = f"Equipped {item_id}."
-        outbound.append(inv)
-        return character_id, user_id, outbound, None
-
-    if msg_type in (
-        ClientMessageType.UNEQUIP,
-        "unequip",
-        "takeoff",
-        "remove",
-    ):
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        slot = data.get("slot")
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        # Remember what was equipped for the toast (unequip mutates char)
-        from game.item_manager import SLOT_COLUMNS
-
-        prev_id = None
-        slot_s = str(slot or "")
-        col = SLOT_COLUMNS.get(slot_s)
-        if col:
-            prev_id = char.get(col)
-        async with db_write() as db:
-            ok, reason = await unequip_item(db, char, slot_s)
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        inv = await _inventory_msg(character_id)
-        inv["unequipped"] = {"slot": slot_s, "item_id": prev_id}
-        inv["message"] = (
-            f"Unequipped {prev_id}." if prev_id else f"Unequipped {slot_s}."
-        )
-        outbound.append(inv)
-        return character_id, user_id, outbound, None
-
-    # Discard / drop from bag (destroy — free a slot when bag is full)
-    if msg_type in ("discard", "drop", "destroy", "throw_away"):
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        item_raw = data.get("item") or data.get("item_id")
-        item_id, item_err = _resolve_item_arg(item_raw)
-        if item_err or not item_id:
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason=item_err or "item required")
-            )
-            return character_id, user_id, outbound, None
-        # Explicit quantity parse — do not use `or 1` (qty=0 must not discard one)
-        if "quantity" in data:
-            raw_qty = data.get("quantity")
-        elif "qty" in data:
-            raw_qty = data.get("qty")
-        else:
-            raw_qty = 1
-        qty = _parse_positive_qty(raw_qty)
-        if qty is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        async with db_write() as db:
-            ok, reason, info = await discard_item(db, char, str(item_id), qty)
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        inv = await _inventory_msg(character_id)
-        inv["discarded"] = info
-        inv["message"] = (
-            f"Discarded {info.get('quantity', 1)}× "
-            f"{info.get('item_name') or item_id}"
-        )
-        outbound.append(inv)
-        return character_id, user_id, outbound, None
-
+    # inventory/equip/discard via network.handlers.inventory
     # buy/sell/shop via network.handlers.shop
 
     # Debug/test: force encounter (ALLOW_DEBUG=1)

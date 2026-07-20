@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.146</b> · <b>776</b> tests green · town <code>/shop</code> · <code>/buy</code> · <code>/sell</code> · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.147</b> · <b>784</b> tests green · <code>/bag</code> · <code>/equip</code> · <code>/discard</code> · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -36,12 +36,12 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.146-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.147-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-776_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-784_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
-  <img alt="shop" src="https://img.shields.io/badge/shop-/buy_·_/sell-eab308?style=for-the-badge" />
+  <img alt="bag" src="https://img.shields.io/badge/bag-/equip_·_/discard-f59e0b?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -104,7 +104,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-776_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-784_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
 </p>
@@ -229,7 +229,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.146** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.147** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -246,10 +246,10 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.146-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/776_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.147-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/784_tests_green-059669?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-town_shop-eab308?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-bag_·_equip-f59e0b?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
@@ -257,58 +257,61 @@ flowchart LR
 <tr>
 <td width="33%" valign="top" align="center">
 
-### 🛒 Shop
+### 🎒 Bag
 | | |
 |:--|:--|
-| **`/shop`** · **Tab** | town catalog |
-| **Town only** | not in field |
-| **Not in fight** | combat blocked |
+| **`/bag`** · **I** | open inventory |
+| **12 × 8** | stack limits |
+| **Census** | online · nearby |
 
 </td>
 <td width="33%" valign="top" align="center">
 
-### 💰 Buy · sell
+### ⚔️ Equip
 | | |
 |:--|:--|
-| **`/buy herb`** | friendly names |
-| **`/sell herb 2`** | qty safe |
-| **AFK** | shopping clears it |
+| **`/equip club`** | auto-slot |
+| **`/unequip`** | free a slot |
+| **Not mid-fight** | combat blocked |
 
 </td>
 <td width="33%" valign="top" align="center">
 
-### ✅ Fail safe
+### 🗑 Discard
 | | |
 |:--|:--|
-| **Bad qty** | 0 rejected |
-| **Need gold** | cost shown |
-| **Bag full** | clear toast |
+| **`/discard herb`** | free space |
+| **Qty safe** | 0 rejected |
+| **AFK** | gearing clears it |
 
 </td>
 </tr>
 </table>
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.146-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//shop_·_/buy_·_/sell-eab308?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/776_tests-059669?style=for-the-badge" />
-  <img alt="town" src="https://img.shields.io/badge/town_only-22c55e?style=for-the-badge" />
-  <img alt="afk" src="https://img.shields.io/badge/buy_clears_AFK-f97316?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.147-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//bag_·_/equip_·_/discard-f59e0b?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/784_tests-059669?style=for-the-badge" />
+  <img alt="combat" src="https://img.shields.io/badge/not_in_fight-f43f5e?style=for-the-badge" />
+  <img alt="afk" src="https://img.shields.io/badge/equip_clears_AFK-f97316?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#713f12', 'primaryTextColor': '#fef9c3', 'lineColor': '#facc15', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#78350f', 'primaryTextColor': '#fef3c7', 'lineColor': '#fbbf24', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph shop ["Town shop"]
-    L["/shop"] --> T{"In town · not fighting?"}
-    T -->|yes| B["/buy · /sell"]
-    T -->|no| E["Clear error"]
-    B --> A["AFK clears for friends"]
+  subgraph bag ["Bag loop"]
+    B["/bag · I"] --> E["/equip · /unequip"]
+    E --> D["/discard"]
+    E --> A["AFK clears for friends"]
+    D --> A
+  end
+  subgraph fight ["Mid-fight"]
+    E --> X["Blocked cleanly"]
   end
 ```
 
 > [!TIP]
-> In **town**, **`/shop`** · **`/buy copper sword`** · **`/sell herb`**. Shopping is blocked mid-fight and outside town. A successful buy or sell clears **AFK** so friends know you are back.
+> **`/bag`** to check your pack · **`/equip copper sword`** · **`/discard herb`** to free space. Equip and discard are blocked mid-fight. Successful equip / unequip / discard clears **AFK** so friends know you are back.
 
 <table>
 <tr>
@@ -574,6 +577,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.147** | `/bag` · `/equip` · `/discard` · AFK clear · combat gate · **784** tests |
 | **0.5.146** | town `/shop` · `/buy` · `/sell` · AFK clear · qty safe · **776** tests |
 | **0.5.145** | `/s` · `/g` · `/yell` chat · mute · private whisper path · **767** tests |
 | **0.5.144** | `/w` · `/r` whisper private delivery + soft reconnect · **757** tests |
@@ -722,7 +726,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** · not mid-fight · buy/sell clears AFK |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **776** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **784** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -847,7 +851,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 776 passed
+# expect: 784 passed
 ```
 
 ---
@@ -1124,9 +1128,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-776_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-784_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.146-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.147-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1232,11 +1236,11 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.146-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/776_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.147-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/784_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="shop" src="https://img.shields.io/badge/shop-/buy_·_/sell-eab308?style=for-the-badge" />
+  <img alt="bag" src="https://img.shields.io/badge/bag-/equip_·_/discard-f59e0b?style=for-the-badge" />
 </p>
 
 <p align="center">

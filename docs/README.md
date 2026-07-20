@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.146** (2026-07-20) · suite **776** tests · GitHub README shop polish · humans ≠ agents
+**Last docs refresh:** **v0.5.147** (2026-07-20) · suite **784** tests · bag/equip extract · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -54,7 +54,7 @@ flowchart TB
 <p align="center">
   <img alt="humans" src="https://img.shields.io/badge/humans-README_·_HUMAN_·_art-2563eb?style=for-the-badge" />
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
-  <img alt="ver" src="https://img.shields.io/badge/live-v0.5.146_·_776-059669?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/live-v0.5.147_·_784-059669?style=for-the-badge" />
 </p>
 
 ---
