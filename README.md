@@ -80,31 +80,30 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · <b><code>/inn</code> · rest</code></b> · shop · chat · meetup · <b>soft reconnect</b>.
+  Server-side 1v1 · <b><code>/inn</code> · <code>/rest</code></b> · shop · bag · chat · meetup · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
   <img alt="zones" src="https://img.shields.io/badge/zones-town_·_field_·_dungeon-0ea5e9?style=flat-square" />
   <img alt="combat" src="https://img.shields.io/badge/combat-server_1v1-f43f5e?style=flat-square" />
-  <img alt="bag" src="https://img.shields.io/badge//bag-12_×_8-f59e0b?style=flat-square" />
-  <img alt="equip" src="https://img.shields.io/badge//equip-auto_slot-fbbf24?style=flat-square" />
-  <img alt="discard" src="https://img.shields.io/badge//discard-free_space-d97706?style=flat-square" />
+  <img alt="inn" src="https://img.shields.io/badge//inn-quote_·_rest-14b8a6?style=flat-square" />
+  <img alt="rest" src="https://img.shields.io/badge//rest-full_HP_MP-0d9488?style=flat-square" />
   <img alt="shop" src="https://img.shields.io/badge//shop-town_catalog-eab308?style=flat-square" />
-  <img alt="buy" src="https://img.shields.io/badge//buy_·_/sell-friendly_names-ca8a04?style=flat-square" />
-  <img alt="chat_s" src="https://img.shields.io/badge//s-nearby-22c55e?style=flat-square" />
+  <img alt="bag" src="https://img.shields.io/badge//bag_·_/equip-f59e0b?style=flat-square" />
+  <img alt="chat_s" src="https://img.shields.io/badge//s_·_/g_·_/yell-22c55e?style=flat-square" />
   <img alt="whisper" src="https://img.shields.io/badge//w_·_/r-private-0ea5e9?style=flat-square" />
   <img alt="wave" src="https://img.shields.io/badge//wave-near_·_far-f472b6?style=flat-square" />
-  <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from_·_@emote-8b5cf6?style=flat-square" />
-  <img alt="look" src="https://img.shields.io/badge//look-near_coords_·_far_zone-0ea5e9?style=flat-square" />
+  <img alt="social" src="https://img.shields.io/badge/social-@share_·_@from-8b5cf6?style=flat-square" />
+  <img alt="look" src="https://img.shields.io/badge//look-near_·_far-0ea5e9?style=flat-square" />
   <img alt="find" src="https://img.shields.io/badge//find-plain_summary-0ea5e9?style=flat-square" />
   <img alt="mute" src="https://img.shields.io/badge//ignores-near_·_far-64748b?style=flat-square" />
   <img alt="mp" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=flat-square" />
   <img alt="magic" src="https://img.shields.io/badge/magic-/cast_/repel-a855f7?style=flat-square" />
-  <img alt="afk" src="https://img.shields.io/badge/AFK-equip_clears_it-f97316?style=flat-square" />
+  <img alt="afk" src="https://img.shields.io/badge/AFK-rest_clears_it-f97316?style=flat-square" />
   <img alt="meet" src="https://img.shields.io/badge/meetup-/invite_·_/accept-ec4899?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel-10b981?style=flat-square" />
   <img alt="suite" src="https://img.shields.io/badge/tests-791_green-059669?style=flat-square" />
-  <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
+  <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp-a855f7?style=flat-square" />
 </p>
 
 > [!NOTE]
@@ -154,32 +153,34 @@ protocol · tests · reliability
 
 <p align="center">
   <sub><b>At a glance</b></sub><br/>
-  <img alt="town" src="https://img.shields.io/badge/🗺️_Town-safe_·_shop-22c55e?style=for-the-badge" />
+  <img alt="town" src="https://img.shields.io/badge/🗺️_Town-safe_·_inn-22c55e?style=for-the-badge" />
   <img alt="field" src="https://img.shields.io/badge/🌿_Field-encounters-eab308?style=for-the-badge" />
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
-  <img alt="bag2" src="https://img.shields.io/badge/🎒_Bag-/equip_·_/discard-f59e0b?style=for-the-badge" />
-  <img alt="equip2" src="https://img.shields.io/badge/⚔️_Equip-auto_slot-fbbf24?style=for-the-badge" />
+  <img alt="inn2" src="https://img.shields.io/badge/🏨_Inn-/rest_·_quote-14b8a6?style=for-the-badge" />
   <img alt="shop2" src="https://img.shields.io/badge/🛒_Shop-/buy_·_/sell-eab308?style=for-the-badge" />
+  <img alt="bag2" src="https://img.shields.io/badge/🎒_Bag-/equip_·_/discard-f59e0b?style=for-the-badge" />
   <img alt="chat2" src="https://img.shields.io/badge/💬_Chat-/s_·_/g_·_/yell-22c55e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
   <img alt="whisper2" src="https://img.shields.io/badge/🔒_Whisper-/w_·_/r-0ea5e9?style=for-the-badge" />
-  <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-equip_clears_it-f97316?style=for-the-badge" />
+  <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-rest_clears_it-f97316?style=for-the-badge" />
 </p>
 
 <p align="center">
-  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_shop_→_equip_→_field-334155?style=for-the-badge" />
+  <img alt="loop" src="https://img.shields.io/badge/loop-town_→_inn_→_shop_→_field-334155?style=for-the-badge" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-06b6d4?style=for-the-badge" />
   <img alt="socialmem" src="https://img.shields.io/badge/social_memory-two--way-ec4899?style=for-the-badge" />
-  <img alt="afkloop" src="https://img.shields.io/badge/afk-/equip_or_/back-f97316?style=for-the-badge" />
-  <img alt="bagloop" src="https://img.shields.io/badge//bag_→_/equip_·_/discard-f59e0b?style=for-the-badge" />
+  <img alt="afkloop" src="https://img.shields.io/badge/afk-/rest_or_/back-f97316?style=for-the-badge" />
+  <img alt="innloop" src="https://img.shields.io/badge/R_quote_→_R_rest-14b8a6?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#78350f', 'primaryTextColor': '#fef3c7', 'lineColor': '#fbbf24', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#134e4a', 'primaryTextColor': '#ccfbf1', 'lineColor': '#2dd4bf', 'secondaryColor': '#164e63', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
   A[Register] --> B[Create hero]
   B --> C[Town · safe]
+  C --> INN["R · /inn · /rest"]
+  INN --> C
   C --> SH["/shop · /buy"]
   SH --> EQ["/bag · /equip"]
   EQ --> C
@@ -189,7 +190,7 @@ flowchart LR
   C --> CH["Chat · meetup"]
   CH --> C
   D --> H["/busy · AFK"]
-  H --> EQ
+  H --> INN
   H --> D
 ```
 
@@ -197,11 +198,11 @@ flowchart LR
 <tr>
 <td align="center" width="12%"><b>🗺️ Play</b><br/><sub>shared grid</sub></td>
 <td align="center" width="12%"><b>⚔️ Fight</b><br/><sub>server 1v1</sub></td>
-<td align="center" width="12%"><b>🎒 Bag</b><br/><sub>/equip · /discard</sub></td>
+<td align="center" width="12%"><b>🏨 Inn</b><br/><sub>quote · rest</sub></td>
 <td align="center" width="12%"><b>🛒 Shop</b><br/><sub>/buy · /sell</sub></td>
+<td align="center" width="12%"><b>🎒 Bag</b><br/><sub>/equip · /discard</sub></td>
 <td align="center" width="12%"><b>💬 Chat</b><br/><sub>/s · /g · /yell</sub></td>
-<td align="center" width="12%"><b>🤝 Meetup</b><br/><sub>invite · accept</sub></td>
-<td align="center" width="12%"><b>☕ AFK</b><br/><sub>equip clears it</sub></td>
+<td align="center" width="12%"><b>☕ AFK</b><br/><sub>rest clears it</sub></td>
 <td align="center" width="12%"><b>🔁 Soft RC</b><br/><sub>~60s memory</sub></td>
 </tr>
 </table>
@@ -306,6 +307,18 @@ flowchart LR
 
 <table>
 <tr>
+<td width="11%" valign="top" align="center">
+
+### 🏨 Inn
+| | |
+|:--|:--|
+| **R** | quote |
+| **R** again | rest |
+| **`/inn`** | same |
+
+<sub>town · clears AFK</sub>
+
+</td>
 <td width="11%" valign="top" align="center">
 
 ### 🎒 Bag
@@ -693,7 +706,7 @@ flowchart TB
 |:--|:--|
 | 🗺️ | Shared grid · safe **town** · field · **dungeon** |
 | ⚔️ | Server-side DQ1 1v1 · reconnect mid-fight |
-| 🏠 | Inn (quote then confirm) · shop · **`/bag`** · **`/equip`** · **`/discard`** |
+| 🏠 | **Inn** (**R** quote · rest · **`/inn`**) · shop · **`/bag`** · **`/equip`** · **`/discard`** |
 | ✨ | Heal · Return · **Repel** · **Radiant** · Outside |
 
 </td>

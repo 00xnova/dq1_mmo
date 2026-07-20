@@ -104,7 +104,9 @@ Press **R** in town to **see the inn cost**, then **R again** (within a few seco
 
 - Cost: **max(4, level × 4)** gold (free if already full HP/MP)  
 - If you can’t afford it, the quote shows how much you need  
-- Slash: **`/inn`** or **`/rest`** also requests a cost quote
+- Slash: **`/inn`** or **`/rest`** also requests a cost quote  
+- **Town only** · not mid-fight · a successful rest clears **AFK** so friends see you are back  
+- Quote and rest confirmations may note how many heroes are online / nearby  
 
 ---
 

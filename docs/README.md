@@ -3,7 +3,7 @@
 **Human** documentation and **agent / LLM** documentation are intentionally separate.
 Do not copy protocol tables, test matrices, or reliability rule lists into player-facing pages.
 
-**Last docs refresh:** **v0.5.148** (2026-07-20) · suite **791** tests · town inn extract · humans ≠ agents
+**Last docs refresh:** **v0.5.148** (2026-07-20) · suite **791** tests · GitHub README inn polish · humans ≠ agents
 
 | Audience | May read | Must not treat as contract |
 |:---------|:---------|:---------------------------|
@@ -100,6 +100,7 @@ flowchart TB
 - **`/askwhere` · `/locate`** — ask a hero where they are; they answer with **`/share @last`**
 - **`/thank` · `/ty @last`** — private thanks (handy after a share)
 - Stuck meetup invites **clear** if you answer while the inviter is offline · cancel while offline clears soft-reconnect ghosts
+- **`/inn` · `/rest` · R quote/rest** — town only · not mid-fight · quote then pay · rest clears AFK for friends
 - **`/bag` · `/equip` · `/unequip` · `/discard`** — not mid-fight · safe discard qty · equip/unequip/discard clears AFK for friends
 - **`/shop` · `/buy` · `/sell`** — town only · not mid-fight · friendly item names · safe quantities · buy/sell clears AFK for friends
 - **`/s` · `/g` · `/yell` · `/z`** — nearby · global · same-zone chat · mute respected · you always see your own line
