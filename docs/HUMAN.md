@@ -23,6 +23,7 @@ Protocol tables and test matrices stay **out** of this guide.
 **Recent for players/ops (v0.5.139):** **`/share Hero`** confirms with near/far · they still receive your zone and map spot · failed shares restore AFK · **@share** / **@from** memory still soft-reconnects · **719** tests.
 
 > [!TIP]
+> **Share your spot:** **`/share Hero`** (or after **`/askwhere`**, they **`/share @last`**) — they get zone + coords; you see near/far. Soft reconnect keeps **@share** / **@from**.  
 > **Thank someone:** **`/thank Hero`** or **`/ty @from`** after a share — you see near/far (and zone); they get a private thanks. Failed delivery refunds chat rate and restores AFK.  
 > **Poke a friend:** **`/poke Hero`** or **`/nudge @last`** — you see near/far (and zone); they get a private “trying to get your attention.” Failed delivery won’t leave you stuck rate-limited or wrongly AFK.  
 > **Find friends:** **`/find Hero`** · **`/find zone:field`** · **`/find combat:yes`** — you get a plain line (how many matched · how many online), never someone else’s map coords.  
