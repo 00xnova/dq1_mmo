@@ -2,8 +2,8 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.136-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-704-059669?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.137-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-709-059669?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -18,9 +18,9 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.136 · **704** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.137 · **709** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.136):** **`/poke`** / **`/nudge`** confirm with near/far (and zone) · failed pokes restore AFK if you were away · roll still icebreaks nearby · **704** tests.
+**Recent for players/ops (v0.5.137):** **`/thank`** / **`/ty`** confirm with near/far (and zone) · failed thanks restore AFK · poke still works the same · **709** tests.
 
 > [!TIP]
 > **Poke a friend:** **`/poke Hero`** or **`/nudge @last`** — you see near/far (and zone); they get a private “trying to get your attention.” Failed delivery won’t leave you stuck rate-limited or wrongly AFK.  
@@ -159,7 +159,7 @@ Press **D** in the bag to **discard** one unit of the selected item (frees space
 | **/cancel** · **/uninvite** | Take back **your** last invite (they get a notice) |
 | **/share Name** · **/share @last** | Privately share your **zone and map position** (opt-in only) |
 | **/askwhere Name** · **/locate @last** | Ask them where they are — they can **/share @last** to answer |
-| **/thank Name** · **/ty @last** | Private thanks (handy after someone shares a location) |
+| **/thank Name** · **/ty @last** | Private thanks (handy after someone shares a location) · near/far confirm |
 | **/poke Name** · **/nudge @last** | Private “trying to get your attention” (not a party) · confirm near/far · zone |
 | **/lastinvite** | Who last invited you **and** who you last invited (near/far when online) |
 | **/pending** · **/invites** · **/meetup** | Pending meetup invites (incoming + outgoing) |
@@ -328,7 +328,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 704 passed
+# expect: 709 passed
 ```
 
 ---
@@ -342,7 +342,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.136** · **704** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.137** · **709** tests).
 
 | Do | Don’t |
 |:---|:------|

@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.136` (`server/config.py` → `VERSION`) · **704** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.137` (`server/config.py` → `VERSION`) · **709** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.136** / **704** until the suite or `VERSION` changes.  
-Last **pushed** ship: `9f6e3b2` (v0.5.136).
+Keep badges at **0.5.137** / **709** until the suite or `VERSION` changes.  
+Last **pushed** ship: `9f6e3b2` / `cc0dc0d` (v0.5.136). Shipping **0.5.137**.
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.136 / 704** · README poke polish · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.137 / 709** · thank handler extract · protocol only here.
 
 ## Documentation map (do not mix)
 
@@ -101,6 +101,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/find.py` | find/search (filters · plain message · census) |
 | `server/network/handlers/roll.py` | roll/dice (nearby icebreaker · sides validate) |
 | `server/network/handlers/poke.py` | poke/nudge (private_social_delivery · near/far) |
+| `server/network/handlers/thank.py` | thank/ty (private_social_delivery · near/far) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -561,6 +562,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 336. Poke uses **private_social_delivery** (refund_chat + restore_afk on fail).
 337. Echo includes peer **nearby**/zone, plain message with peer_status_suffix, online/nearby_count.
 338. Tests: `test_features_v05136` + `test_mp_reliability_v05136`.
+339. **`handlers/thank.py`:** thank/thanks/ty/thx extracted from message_handler.
+340. Thank uses **private_social_delivery** (refund_chat + restore_afk on fail).
+341. Echo includes peer **nearby**/zone, plain message with peer_status_suffix, online/nearby_count.
+342. Tests: `test_features_v05137` + `test_mp_reliability_v05137`.
 
 ## Tests (mandatory for your changes)
 
