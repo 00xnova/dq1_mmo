@@ -36,7 +36,7 @@
 <p align="center">
   <img alt="version" src="https://img.shields.io/badge/version-0.5.136-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-694_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-704_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
@@ -77,7 +77,7 @@
 
 <p align="center">
   Explore <b>town</b>, <b>field</b>, and <b>dungeon</b> with other heroes on one shared grid.<br/>
-  Server-side 1v1 · shop · whisper · meetup · <code>/find Name</code> with plain summary · <code>/ignores</code> near · far · zone · <b>soft reconnect</b>.
+  Server-side 1v1 · shop · whisper · meetup · <code>/poke</code> near/far · <code>/find</code> plain summary · <b>soft reconnect</b>.
 </p>
 
 <p align="center">
@@ -96,7 +96,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-694_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-704_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
   <img alt="meta" src="https://img.shields.io/badge/meta-/played_·_/version_·_/time-06b6d4?style=flat-square" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
@@ -154,6 +154,7 @@ protocol · tests · reliability
   <img alt="dungeon" src="https://img.shields.io/badge/🕳_Dungeon-harder-ef4444?style=for-the-badge" />
   <img alt="fight" src="https://img.shields.io/badge/⚔️_Fight-server_1v1-f43f5e?style=for-the-badge" />
   <img alt="social" src="https://img.shields.io/badge/👋_Social-meetup_·_wave-ec4899?style=for-the-badge" />
+  <img alt="poke2" src="https://img.shields.io/badge/👆_Poke-near_·_far-a855f7?style=for-the-badge" />
   <img alt="find2" src="https://img.shields.io/badge/🔍_Find-plain_summary-0ea5e9?style=for-the-badge" />
   <img alt="afk2" src="https://img.shields.io/badge/☕_AFK-zone_·_nearby-f97316?style=for-the-badge" />
 </p>
@@ -225,7 +226,7 @@ flowchart LR
 
 <p align="center">
   <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.136-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/694_tests_green-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/704_tests_green-059669?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -244,24 +245,35 @@ flowchart LR
 <p align="center">
   <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.136-7c3aed?style=for-the-badge" />
   <img alt="meta" src="https://img.shields.io/badge//poke_·_/nudge-near_far-a855f7?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/694_tests-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/704_tests-059669?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#0c4a6e', 'primaryTextColor': '#e0f2fe', 'lineColor': '#38bdf8', 'secondaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#4c1d95', 'primaryTextColor': '#ede9fe', 'lineColor': '#a78bfa', 'secondaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph find ["Find loop"]
-    F1["/find Hero"] --> F2["Found Hero · town"]
-    F3["/find zone:field"] --> F4["Found N heroes · online"]
-    F5["/find combat:yes"] --> F6["Who is fighting"]
+  subgraph poke ["Poke loop"]
+    P1["/poke Hero"] --> P2["You poked Hero [near · town]"]
+    P2 --> P3["Hero sees: trying to get your attention"]
+    P3 --> P4["/r works both ways"]
   end
-  subgraph safe ["Never shows"]
-    F2 --> X["No map coords of others"]
+  subgraph fail ["If delivery fails"]
+    P1 --> F["Chat rate refunded · AFK restored"]
   end
 ```
 
 <table>
 <tr>
+<td width="12%" valign="top" align="center">
+
+### 👆 Poke
+| | |
+|:--|:--|
+| **`/poke`** | nudge |
+| **`/nudge`** | same |
+
+<sub>near · far · zone</sub>
+
+</td>
 <td width="12%" valign="top" align="center">
 
 ### 🔍 Find
@@ -738,7 +750,7 @@ python tests/run_tests.py
 | **/thank @from** · **/w @from** | Reuse who last shared *with you* (**@** required) |
 | **/askwhere Name** · **/locate @last** | Ask where they are — they can **/share @last** |
 | **/thank Name** · **/ty @last** | Private thanks (handy after a share) |
-| **/poke Name** · **/nudge @last** | Private “trying to get your attention” |
+| **/poke Name** · **/nudge @last** | Private “trying to get your attention” · near/far confirm |
 | **/lastinvite** | Who invited you **and** who you invited (near/far) |
 | **/fighting** · **/combats** | Nearby heroes currently fighting |
 | **/find combat:yes** · **/find fighting** | Online fighters (no map coords) |
@@ -853,7 +865,7 @@ Bag: **12** kinds · **8** each · title shows **used/max**.
 | `/thank @from` · `/w @from` | Reuse who last shared *with you* (**@** required) |
 | `/askwhere Name` · `/locate @last` | Ask where they are (they `/share @last`) |
 | `/thank Name` · `/ty @last` | Private thanks |
-| `/poke Name` · `/nudge @last` | Private attention ping |
+| `/poke Name` · `/nudge @last` | Private attention ping · near/far confirm |
 | `/lastinvite` | Who invited you **and** who you invited (near/far) |
 | `/fighting` · `/combats` | Nearby heroes in combat |
 | `/find combat:yes` · `/find fighting` | Online fighters (no map coords) |
@@ -981,7 +993,7 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-694_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-704_green-059669?style=for-the-badge" />
   &nbsp;
   <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.136-6366f1?style=for-the-badge" />
 </p>
@@ -1089,7 +1101,7 @@ flowchart LR
 
 <p align="center">
   <img alt="v" src="https://img.shields.io/badge/v0.5.136-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/694_tests-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/704_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
 </p>

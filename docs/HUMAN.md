@@ -23,6 +23,7 @@ Protocol tables and test matrices stay **out** of this guide.
 **Recent for players/ops (v0.5.136):** **`/poke`** / **`/nudge`** confirm with near/far (and zone) · failed pokes restore AFK if you were away · roll still icebreaks nearby · **704** tests.
 
 > [!TIP]
+> **Poke a friend:** **`/poke Hero`** or **`/nudge @last`** — you see near/far (and zone); they get a private “trying to get your attention.” Failed delivery won’t leave you stuck rate-limited or wrongly AFK.  
 > **Find friends:** **`/find Hero`** · **`/find zone:field`** · **`/find combat:yes`** — you get a plain line (how many matched · how many online), never someone else’s map coords.  
 > **Step away cleanly:** **`/afk lunch`** · **`/back`**. **Mute:** **`/ignore`** · **`/ignores`** · **`/unignore`**.
 
