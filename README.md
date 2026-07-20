@@ -26,7 +26,7 @@
 <p align="center">
   <b>A Dragon Quest&nbsp;I–style multiplayer adventure</b><br/>
   <sub>One shared overworld · classic 1v1 combat · Love2D client · FastAPI server</sub><br/>
-  <sub><b>v0.5.143</b> · <b>747</b> tests green · <code>/wave</code> · emotes · near/far · soft reconnect · <b>humans ≠ agents</b></sub>
+  <sub><b>v0.5.144</b> · <b>757</b> tests green · <code>/w</code> · <code>/r</code> whisper · near/far · soft reconnect · <b>humans ≠ agents</b></sub>
 </p>
 
 <p align="center">
@@ -36,12 +36,12 @@
 </p>
 
 <p align="center">
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.143-7c3aed?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.144-7c3aed?style=for-the-badge" />
   <img alt="status" src="https://img.shields.io/badge/status-playable_MVP-16a34a?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-747_passing-059669?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-757_passing-059669?style=for-the-badge" />
   <img alt="stack" src="https://img.shields.io/badge/stack-Love2D_·_FastAPI_·_SQLite-0ea5e9?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
-  <img alt="emote" src="https://img.shields.io/badge/emotes-/wave_·_near_far-f472b6?style=for-the-badge" />
+  <img alt="whisper" src="https://img.shields.io/badge/whisper-/w_·_/r-0ea5e9?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -100,7 +100,7 @@
   <img alt="acct" src="https://img.shields.io/badge/account-change_password-64748b?style=flat-square" />
   <img alt="bag" src="https://img.shields.io/badge/bag-12_×_8-f59e0b?style=flat-square" />
   <img alt="art" src="https://img.shields.io/badge/art-CC0_pixel_·_SVG-10b981?style=flat-square" />
-  <img alt="suite" src="https://img.shields.io/badge/tests-747_green-059669?style=flat-square" />
+  <img alt="suite" src="https://img.shields.io/badge/tests-757_green-059669?style=flat-square" />
   <img alt="peeks" src="https://img.shields.io/badge/peeks-/gold_·_/hp_·_/buffs-a855f7?style=flat-square" />
   <img alt="meta" src="https://img.shields.io/badge/meta-/played_·_/version_·_/time-06b6d4?style=flat-square" />
   <img alt="reconnect" src="https://img.shields.io/badge/soft_reconnect-~60s-14b8a6?style=flat-square" />
@@ -224,7 +224,7 @@ flowchart LR
 
 | | Section |
 |:--|:--------|
-| 🆕 | [What's new](#-whats-new) — **v0.5.143** |
+| 🆕 | [What's new](#-whats-new) — **v0.5.144** |
 | ✨ | [Highlights](#-highlights) |
 | 🧩 | [How it fits together](#-how-it-fits-together) |
 | 🚀 | [Quick start](#-quick-start) |
@@ -241,10 +241,10 @@ flowchart LR
 ## 🆕 What's new
 
 <p align="center">
-  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.143-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/747_tests_green-059669?style=for-the-badge" />
+  <img alt="latest" src="https://img.shields.io/badge/latest-v0.5.144-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/757_tests_green-059669?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="ship" src="https://img.shields.io/badge/focus-emotes_·_/wave-f472b6?style=for-the-badge" />
+  <img alt="ship" src="https://img.shields.io/badge/focus-whisper_·_/r-0ea5e9?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
 </p>
 
@@ -252,24 +252,24 @@ flowchart LR
 <tr>
 <td width="33%" valign="top" align="center">
 
-### 👋 Nearby
+### 💬 Whisper
 | | |
 |:--|:--|
-| **`/wave`** · **`/bow`** | shortcuts |
-| **`/cheer`** · **`/dance`** | more fun |
-| **`/emotes`** · **E** | list / cycle |
-| **In view** | friends see it |
+| **`/w Hero hi`** | private chat |
+| **`/tell`** | same |
+| **Near / far** | both work |
+| **If it fails** | AFK stays honest |
 
 </td>
 <td width="33%" valign="top" align="center">
 
-### 🎯 Far friend
+### ↩️ Reply
 | | |
 |:--|:--|
-| **`/wave Hero`** | still arrives |
-| **`/wave @last`** | last partner |
-| **If it fails** | AFK stays honest |
-| **No ghost** | memory not faked |
+| **`/r hi`** | last partner |
+| **`@last`** | same idea |
+| **After invite** | **`/r`** still works |
+| **Empty** | clean error |
 
 </td>
 <td width="33%" valign="top" align="center">
@@ -277,40 +277,39 @@ flowchart LR
 ### 🧠 Memory
 | | |
 |:--|:--|
-| **`@emote`** | who you waved at |
-| **`@emotedby`** | who waved at you |
-| **`/lastemote`** | both sides |
-| **Soft reconnect** | ~1 min kept |
+| **`/lastwhisper`** | who **/r** hits |
+| **Soft reconnect** | partner kept |
+| **AFK tip** | they may be away |
+| **Mute** | respect both ways |
 
 </td>
 </tr>
 </table>
 
 <p align="center">
-  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.143-7c3aed?style=for-the-badge" />
-  <img alt="meta" src="https://img.shields.io/badge//wave_·_emotes-near_far-f472b6?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/747_tests-059669?style=for-the-badge" />
-  <img alt="memory" src="https://img.shields.io/badge/@emote_·_@emotedby-8b5cf6?style=for-the-badge" />
-  <img alt="soft" src="https://img.shields.io/badge/soft_reconnect-/lastemote-06b6d4?style=for-the-badge" />
+  <img alt="shipped" src="https://img.shields.io/badge/shipped-v0.5.144-7c3aed?style=for-the-badge" />
+  <img alt="meta" src="https://img.shields.io/badge//w_·_/r_whisper-0ea5e9?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/757_tests-059669?style=for-the-badge" />
+  <img alt="fail" src="https://img.shields.io/badge/fail_safe-AFK_restore-f97316?style=for-the-badge" />
+  <img alt="soft" src="https://img.shields.io/badge/soft_reconnect-/r_works-06b6d4?style=for-the-badge" />
 </p>
 
 ```mermaid
-%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#831843', 'primaryTextColor': '#fce7f3', 'lineColor': '#f472b6', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
+%%{init: {'theme': 'dark', 'themeVariables': { 'primaryColor': '#0c4a6e', 'primaryTextColor': '#e0f2fe', 'lineColor': '#38bdf8', 'secondaryColor': '#1e3a8a', 'tertiaryColor': '#1e293b'}}}%%
 flowchart LR
-  subgraph emotes ["Wave loop"]
-    W["/wave Hero"] --> N{"Nearby?"}
-    N -->|yes| A["Friends in view see it"]
-    N -->|no| P["They still get the wave"]
-    P -->|ok| M["@emote · @emotedby"]
-    P -->|oops| R["AFK stays · try again"]
+  subgraph whisper ["Whisper loop"]
+    W["/w Hero hi"] --> D{"Delivered?"}
+    D -->|yes| M["Both remember · /r ready"]
+    D -->|no| R["AFK restored · try again"]
+    M --> R2["/r reply"]
   end
   subgraph soft ["Brief drop ~1 min"]
-    M --> S["/lastemote still works"]
+    M --> S["/lastwhisper · /r still work"]
   end
 ```
 
 > [!TIP]
-> **`/wave Hero`** or **`/wave @last`** — nearby friends see it; far friends still get a private wave. If it fails, your AFK status stays honest. Soft reconnect keeps **`/lastemote`**.
+> **`/w Hero hi`** then they **`/r hey`** — private chat both ways. Failed whispers restore AFK so you are not stuck. Soft reconnect keeps your last whisper partner for **`/r`**.
 
 <table>
 <tr>
@@ -552,6 +551,7 @@ flowchart TB
 
 | Version | Highlights |
 |:--------|:-----------|
+| **0.5.144** | `/w` · `/r` whisper private delivery + soft reconnect · **757** tests |
 | **0.5.143** | `/wave` · emotes near/far + soft reconnect memory · **747** tests |
 | **0.5.142** | `/accept` · `/decline` meetup reply near/far + soft-grace clear · **738** tests |
 | **0.5.141** | `/invite` meetup near/far + soft-grace memory · **730** tests |
@@ -697,7 +697,7 @@ flowchart TB
 | **HUD** | HP/MP · gold · zone · position · nearby/online · repel · light · **F** status |
 | **Shop UX** | Gold toasts · need-N-G · sell-back · **town only** (not in combat) |
 | **Ops** | Health endpoint · AFK census · zone population |
-| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **747** tests |
+| **Stability** | Server-authoritative movement · combat resume · soft reconnect · **757** tests |
 
 > [!TIP]
 > **Docs stay split on purpose.** Players use this page and [docs/HUMAN.md](docs/HUMAN.md). Coding agents use **[AGENTS.md](AGENTS.md) only** — never as a player guide.
@@ -822,7 +822,7 @@ love client
 ```bash
 cd server && source .venv/bin/activate
 python tests/run_tests.py
-# expect: 747 passed
+# expect: 757 passed
 ```
 
 ---
@@ -1099,9 +1099,9 @@ dq1_mmo/
   &nbsp;
   <img alt="agents" src="https://img.shields.io/badge/agents-AGENTS.md_only-7c3aed?style=for-the-badge" />
   &nbsp;
-  <img alt="suite" src="https://img.shields.io/badge/suite-747_green-059669?style=for-the-badge" />
+  <img alt="suite" src="https://img.shields.io/badge/suite-757_green-059669?style=for-the-badge" />
   &nbsp;
-  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.143-6366f1?style=for-the-badge" />
+  <img alt="ver" src="https://img.shields.io/badge/docs_@-v0.5.144-6366f1?style=for-the-badge" />
 </p>
 
 <p align="center">
@@ -1207,11 +1207,11 @@ flowchart LR
 </p>
 
 <p align="center">
-  <img alt="v" src="https://img.shields.io/badge/v0.5.143-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/747_tests-059669?style=for-the-badge" />
+  <img alt="v" src="https://img.shields.io/badge/v0.5.144-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/757_tests-059669?style=for-the-badge" />
   <img alt="docs" src="https://img.shields.io/badge/docs-humans_≠_agents-6366f1?style=for-the-badge" />
   <img alt="mvp" src="https://img.shields.io/badge/MVP-playable-16a34a?style=for-the-badge" />
-  <img alt="emote" src="https://img.shields.io/badge/emotes-/wave_·_near_far-f472b6?style=for-the-badge" />
+  <img alt="whisper" src="https://img.shields.io/badge/whisper-/w_·_/r-0ea5e9?style=for-the-badge" />
 </p>
 
 <p align="center">

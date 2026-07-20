@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.143` (`server/config.py` → `VERSION`) · **747** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.144` (`server/config.py` → `VERSION`) · **757** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.143** / **747** until the suite or `VERSION` changes.  
-Last **pushed** ship: `2d718b4` (v0.5.143).
+Keep badges at **0.5.144** / **757** until the suite or `VERSION` changes.  
+Last **pushed** ship: pending (v0.5.144 whisper extract).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.143 / 747** · GitHub README wave/emote polish · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.144 / 757** · whisper/reply extract · human ≠ agent · no protocol dumps.
 
 ## Documentation map (do not mix)
 
@@ -108,6 +108,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/invite.py` | meetup invite (private_social_delivery · near coords) |
 | `server/network/handlers/invite_reply.py` | accept/decline (private_social_delivery · soft-grace clear) |
 | `server/network/handlers/emote.py` | wave/emotes (AOI · far private_social_delivery · soft memory) |
+| `server/network/handlers/whisper.py` | whisper/tell/reply (private_social_delivery · /r soft memory) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -596,6 +597,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 364. Undirected AOI broadcast; directed far uses **private_social_delivery** (refund + restore AFK; no emote memory on fail).
 365. Soft-grace note_emote_to/from; combat block; list catalog rate-exempt; self echo census + peer near/far.
 366. Tests: `test_features_v05143` + `test_mp_reliability_v05143`.
+367. **`handlers/whisper.py`:** whisper/tell/reply/r extracted from message_handler.
+368. Whisper uses **private_social_delivery** (refund + restore AFK on fail); validate before allow_chat.
+369. Soft-grace note_whisper_from both sides; echo near/far + census + target_afk tip; /r chain prefers whisper.
+370. Tests: `test_features_v05144` + `test_mp_reliability_v05144`.
 
 ## Tests (mandatory for your changes)
 
@@ -718,6 +723,8 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v05142` | invite_reply extract · near coords · fail AFK · offline soft-grace |
 | `tests.test_features_v05143` | emote/wave WS · list · version |
 | `tests.test_mp_reliability_v05143` | emote extract · AOI · far private · fail AFK · soft-grace |
+| `tests.test_features_v05144` | whisper/reply WS · /r · version |
+| `tests.test_mp_reliability_v05144` | whisper extract · near/far · fail AFK · /r · target_afk |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.
