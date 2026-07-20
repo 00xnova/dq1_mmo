@@ -2,9 +2,9 @@
 
 <p align="center">
   <img alt="audience" src="https://img.shields.io/badge/audience-humans_only-2563eb?style=for-the-badge" />
-  <img alt="version" src="https://img.shields.io/badge/version-0.5.145-7c3aed?style=for-the-badge" />
-  <img alt="tests" src="https://img.shields.io/badge/tests-767-059669?style=for-the-badge" />
-  <img alt="chat" src="https://img.shields.io/badge/chat-/s_·_/g_·_/yell-22c55e?style=for-the-badge" />
+  <img alt="version" src="https://img.shields.io/badge/version-0.5.146-7c3aed?style=for-the-badge" />
+  <img alt="tests" src="https://img.shields.io/badge/tests-776-059669?style=for-the-badge" />
+  <img alt="shop" src="https://img.shields.io/badge/shop-/buy_·_/sell-eab308?style=for-the-badge" />
   <img alt="split" src="https://img.shields.io/badge/agents-use_AGENTS.md_only-7c3aed?style=for-the-badge" />
 </p>
 
@@ -19,11 +19,12 @@ Protocol tables and test matrices stay **out** of this guide.
 | Swap sprites / art | [../client/assets/ATTRIBUTION.md](../client/assets/ATTRIBUTION.md) |
 | Protocol / AI agent notes | [../AGENTS.md](../AGENTS.md) — **coding agents only** |
 
-**Version:** 0.5.145 · **767** tests · matches `server/config.py` → `VERSION`
+**Version:** 0.5.146 · **776** tests · matches `server/config.py` → `VERSION`
 
-**Recent for players/ops (v0.5.145):** **`/s`** nearby · **`/g`** global · **`/yell`** same zone — mute respected · you always see your own line · private whisper path still restores AFK on fail · **767** tests.
+**Recent for players/ops (v0.5.146):** town **`/shop`** · **`/buy`** · **`/sell`** — combat blocked · town only · safe quantities · successful buy/sell clears AFK for friends · **776** tests.
 
 > [!TIP]
+> **Town shop:** **`/shop`** · **`/buy copper sword`** · **`/sell herb 2`** — only in town, not mid-fight. Shopping clears **AFK**.  
 > **Chat channels:** **`/s hi`** (nearby) · **`/g hi`** (global) · **`/yell hi`** or **`/z hi`** (same zone). Muted players do not see public lines.  
 > **Whisper a friend:** **`/w Hero hi`** · they **`/r hey`** — private both ways. Soft reconnect keeps **`/lastwhisper`** / **`/r`**. Failed whispers restore AFK.  
 > **Wave a friend:** **`/wave Hero`** · **`/wave @last`** · **`/emotes`** to list — nearby heroes see it; far targets still get a private wave. Soft reconnect keeps **`/lastemote`**.  
@@ -336,7 +337,7 @@ Automated tests (for contributors):
 
 ```bash
 cd server && source .venv/bin/activate && python tests/run_tests.py
-# expect: 767 passed
+# expect: 776 passed
 ```
 
 ---
@@ -350,7 +351,7 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 
 You do **not** need agent docs to play or host.  
 Agents should **not** copy protocol tables into this guide.  
-Live version badges above match `server/config.py` → `VERSION` (**0.5.145** · **767** tests).
+Live version badges above match `server/config.py` → `VERSION` (**0.5.146** · **776** tests).
 
 | Do | Don’t |
 |:---|:------|

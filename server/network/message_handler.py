@@ -11,15 +11,12 @@ from game.enemy_spawner import roll_encounter
 from game import formulas as F
 from game.item_manager import (
     REPEL_STEPS,
-    buy_item,
     character_public,
     discard_item,
     equip_item,
     equipment_bonuses,
     list_items,
     resolve_item_id,
-    sell_item,
-    shop_catalog,
     unequip_item,
     use_consumable,
 )
@@ -44,6 +41,7 @@ from network.handlers import emote as emote_handlers
 from network.handlers import invite as invite_handlers
 from network.handlers import invite_cancel as invite_cancel_handlers
 from network.handlers import invite_reply as invite_reply_handlers
+from network.handlers import shop as shop_handlers
 from network.handlers import whisper as whisper_handlers
 from network.handlers import look as look_handlers
 from network.handlers import meta_peeks as meta_peek_handlers
@@ -268,7 +266,13 @@ async def handle_message(
     if chat_peek is not None:
         return chat_peek
 
-    # peeks + social private + invite/emote/whisper/chat via handlers
+    shop_peek = await shop_handlers.handle(
+        character_id, user_id, data, outbound
+    )
+    if shop_peek is not None:
+        return shop_peek
+
+    # peeks + social private + invite/emote/whisper/chat/shop via handlers
 
     # fighting via presence_peeks · quit/stuck via safety
 
@@ -1129,29 +1133,13 @@ async def handle_message(
         outbound.append(msg(ServerMessageType.REST_OK, preview=False, character=char, **info))
         return character_id, user_id, outbound, None
 
-    # --- Inventory / shop / equip ---
+    # --- Inventory / equip (shop/buy/sell via network.handlers.shop) ---
     if msg_type in (ClientMessageType.INVENTORY, "inventory", "bag", "inv", "items"):
         if character_id is None:
             outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
             return character_id, user_id, outbound, None
         manager.touch(character_id)
         outbound.append(await _inventory_msg(character_id))
-        return character_id, user_id, outbound, None
-
-    if msg_type in (ClientMessageType.SHOP, "shop", "store", "vendor"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        # Require live presence + town (was: missing meta skipped the town check)
-        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
-            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
-            return character_id, user_id, outbound, None
-        manager.touch(character_id)
-        outbound.append(msg(ServerMessageType.SHOP_LIST, items=shop_catalog()))
         return character_id, user_id, outbound, None
 
     if msg_type in (ClientMessageType.EQUIP, "equip", "wear", "wield"):
@@ -1270,132 +1258,7 @@ async def handle_message(
         outbound.append(inv)
         return character_id, user_id, outbound, None
 
-    if msg_type in (ClientMessageType.BUY, "buy", "purchase"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
-            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
-            return character_id, user_id, outbound, None
-        item_raw = data.get("item") or data.get("item_id")
-        item_id, item_err = _resolve_item_arg(item_raw)
-        if item_err or not item_id:
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason=item_err or "item required")
-            )
-            return character_id, user_id, outbound, None
-        # quantity: never use `or 1` — qty=0 must not buy one unit
-        if "quantity" in data:
-            raw_qty = data.get("quantity")
-        elif "qty" in data:
-            raw_qty = data.get("qty")
-        else:
-            raw_qty = 1
-        buy_qty = _parse_positive_qty(raw_qty)
-        if buy_qty is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        async with db_write() as db:
-            ok, reason, bought = await buy_item(
-                db, char, str(item_id).strip(), quantity=buy_qty
-            )
-        if not ok:
-            # Surface cost when short on gold (mirrors inn not-enough path)
-            err = msg(ServerMessageType.ERROR, reason=reason)
-            if bought.get("cost") is not None:
-                err["cost"] = bought["cost"]
-            if bought.get("gold") is not None:
-                err["gold"] = bought["gold"]
-            # Bag-full paths: include current bag snapshot for client tips
-            if reason in ("stack full", "inventory full"):
-                try:
-                    inv_snap = await _inventory_msg(character_id)
-                    if inv_snap.get("bag"):
-                        err["bag"] = inv_snap["bag"]
-                except Exception:
-                    pass
-            outbound.append(err)
-            return character_id, user_id, outbound, None
-        was_afk = manager.mark_active(character_id)
-        if was_afk:
-            await manager.publish_status(character_id, pulse_online=True)
-        inv = await _inventory_msg(character_id)
-        if bought:
-            inv["bought"] = bought
-            q = int(bought.get("quantity") or 1)
-            inv["message"] = (
-                f"Bought {q}× {bought.get('item_name') or item_id} "
-                f"for {bought.get('gold_spent', 0)} G"
-                if q > 1
-                else f"Bought {bought.get('item_name') or item_id} for {bought.get('gold_spent', 0)} G"
-            )
-        outbound.append(inv)
-        return character_id, user_id, outbound, None
-
-    if msg_type in (ClientMessageType.SELL, "sell", "vendor_sell"):
-        if character_id is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="authenticate first"))
-            return character_id, user_id, outbound, None
-        if combat_engine.is_in_combat(character_id):
-            outbound.append(msg(ServerMessageType.ERROR, reason="in combat"))
-            return character_id, user_id, outbound, None
-        meta = manager.get_meta(character_id)
-        if not meta or zone_at(int(meta["x"]), int(meta["y"])) != "town":
-            outbound.append(msg(ServerMessageType.ERROR, reason="shop only in town"))
-            return character_id, user_id, outbound, None
-        item_raw = data.get("item") or data.get("item_id")
-        item_id, item_err = _resolve_item_arg(item_raw)
-        if item_err or not item_id:
-            outbound.append(
-                msg(ServerMessageType.ERROR, reason=item_err or "item required")
-            )
-            return character_id, user_id, outbound, None
-        # quantity: never use `or 1` — qty=0 must not sell one unit
-        if "quantity" in data:
-            raw_qty = data.get("quantity")
-        elif "qty" in data:
-            raw_qty = data.get("qty")
-        else:
-            raw_qty = 1
-        sell_qty = _parse_positive_qty(raw_qty)
-        if sell_qty is None:
-            outbound.append(msg(ServerMessageType.ERROR, reason="bad quantity"))
-            return character_id, user_id, outbound, None
-        char = await get_character(character_id)
-        if not char:
-            outbound.append(msg(ServerMessageType.ERROR, reason="character missing"))
-            return character_id, user_id, outbound, None
-        async with db_write() as db:
-            ok, reason, sold = await sell_item(
-                db, char, str(item_id).strip(), quantity=sell_qty
-            )
-        if not ok:
-            outbound.append(msg(ServerMessageType.ERROR, reason=reason))
-            return character_id, user_id, outbound, None
-        was_afk = manager.mark_active(character_id)
-        if was_afk:
-            await manager.publish_status(character_id, pulse_online=True)
-        inv = await _inventory_msg(character_id)
-        # Surface sell result so clients can toast gold earned
-        if sold:
-            inv["sold"] = sold
-            q = int(sold.get("quantity") or 1)
-            inv["message"] = (
-                f"Sold {q}× {sold.get('item_name') or item_id} "
-                f"for {sold.get('gold_gained', 0)} G"
-                if q > 1
-                else f"Sold {sold.get('item_name') or item_id} for {sold.get('gold_gained', 0)} G"
-            )
-        outbound.append(inv)
-        return character_id, user_id, outbound, None
+    # buy/sell/shop via network.handlers.shop
 
     # Debug/test: force encounter (ALLOW_DEBUG=1)
     if msg_type == "debug_encounter":

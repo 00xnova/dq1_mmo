@@ -20,17 +20,17 @@ You are editing this multiplayer game. Prefer this file over guessing.
 | Auth JWT + password change, equip/shop/sell/discard, consumables, inn, field magic · slash buy/sell/use/equip/cast/discard · stuck/home · yell · emotes · busy AFK · meetup invite/accept/decline/cancel · share · askwhere/locate · thank/ty · poke/nudge · offline invite clear · soft-grace invite peer clear · fighting peek · combat_count census · find combat filter · AFK notices · afk_count on peeks/health · refund_chat restore_afk on failed private delivery · social_peer_card near/far on pending/lastinvite/lastemote/social · whisper via private_social_delivery | Final commercial art (placeholders OK to replace) |
 | Char create/delete (max 3) · SQLite · free-port multiplayer tests · soft grace · AOI self-heal · `/cast` · `/buy` · `/stuck` · `/played` · `/counts` · auth welcome | Binary protocol |
 
-**Version:** `0.5.145` (`server/config.py` → `VERSION`) · **767** tests in `server/tests/run_tests.py`  
+**Version:** `0.5.146` (`server/config.py` → `VERSION`) · **776** tests in `server/tests/run_tests.py`  
 **Docs:** humans → `README.md` + `docs/HUMAN.md` · agents → **this file only** (protocol / tests / reliability).  
 When docs fire: sync version badges + test count; **never** copy protocol tables into human docs.  
 Human entry points only: `README.md`, `docs/HUMAN.md`, `docs/README.md`, `client/assets/ATTRIBUTION.md`.  
 Human “What’s new” should use plain language (no `session_id` / message-type catalogs / AOI jargon).  
 GitHub README may use badges and callouts; still **no** protocol dumps.  
 Keep trees separate on every docs pass: polish README for GitHub humans; put protocol / reliability / test matrix **only here**.  
-Keep badges at **0.5.145** / **767** until the suite or `VERSION` changes.  
-Last **pushed** ship: `43224b2` (v0.5.145).
+Keep badges at **0.5.146** / **776** until the suite or `VERSION` changes.  
+Last **pushed** ship: pending (v0.5.146 shop extract).
 **Docs map:** [docs/README.md](docs/README.md) — audience rules for both trees.  
-Docs pass (**this run**): badges **0.5.145 / 767** · GitHub README chat polish · human ≠ agent · no protocol dumps.
+Docs pass (**this run**): badges **0.5.146 / 776** · town shop extract · human ≠ agent · no protocol dumps.
 
 ## Documentation map (do not mix)
 
@@ -110,6 +110,7 @@ Love2D client  --JSON WebSocket-->  FastAPI
 | `server/network/handlers/emote.py` | wave/emotes (AOI · far private_social_delivery · soft memory) |
 | `server/network/handlers/whisper.py` | whisper/tell/reply (private_social_delivery · /r soft memory) |
 | `server/network/handlers/chat.py` | global/nearby/zone chat (AOI · mute · channel whisper) |
+| `server/network/handlers/shop.py` | town shop/buy/sell (combat gate · AFK clear · qty) |
 | `server/network/handlers/presence_peeks.py` | who/near/counts/zone/fighting |
 | `server/network/websocket_manager.py` | Connections, AOI, move/chat rate limits |
 | `server/network/protocol.py` | Message type enums |
@@ -240,7 +241,7 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 6. Chat: sanitize (strip control chars, collapse whitespace); empty → error; rate-limit → `chat_rate_limit`.
 7. **Ping / sync / who / look must not be rate-limited** (main.py exempts them so RTT and presence stay healthy under move spam).
 8. Outbound WS batches: best-effort send; one failure must not crash the connection loop.
-9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8767).
+9. Integration tests must use **ephemeral ports** via `tests.ws_helpers` (never hard-code 8765–8776).
 10. If a WS **send fails**, stop the receive loop and disconnect cleanly (do not call `receive_*` on a dead socket).
 11. On connect, deliver **`auth_ok` (+ world_state) before** `broadcast_online()` so the joiner never sees `online` first.
 12. DB / presence / manager locks must be **loop-safe** (per-loop locks + generation-stamped `close_db`) — sequential uvicorn tests use new event loops.
@@ -607,6 +608,10 @@ Public player objects include: `id`, `name`, `x`/`y` (and `world_x`/`world_y`), 
 373. channel=whisper delegates to **whisper** handler (private_social_delivery + AFK restore).
 374. Reserved channels + invalid zone rejected before allow_chat; self echo census.
 375. Tests: `test_features_v05145` + `test_mp_reliability_v05145`.
+376. **`handlers/shop.py`:** shop/store/vendor · buy/purchase · sell/vendor_sell extracted from message_handler.
+377. Combat gate + town presence before catalog/buy/sell; bad qty before DB; bag-full tips.
+378. Successful buy/sell **mark_active** + publish_status (AFK clear for peers); echo census.
+379. Tests: `test_features_v05146` + `test_mp_reliability_v05146`.
 
 ## Tests (mandatory for your changes)
 
@@ -733,10 +738,12 @@ cd server && source .venv/bin/activate && python tests/run_tests.py
 | `tests.test_mp_reliability_v05144` | whisper extract · near/far · fail AFK · /r · target_afk |
 | `tests.test_features_v05145` | chat/say/yell WS channels · version |
 | `tests.test_mp_reliability_v05145` | chat extract · AOI · zone · mute · channel whisper |
+| `tests.test_features_v05146` | shop buy WS · catalog · version |
+| `tests.test_mp_reliability_v05146` | shop extract · town · combat · qty · AFK clear |
 | `tests.ws_helpers` | Free-port uvicorn helpers (not a test module) |
 
 - Prefer **adding tests** for new multiplayer/network behavior.
-- Integration WS tests should use `tests.ws_helpers.start_server()` (ephemeral port), not hard-coded 8765–8767.
+- Integration WS tests should use `tests.ws_helpers.start_server()` (ephemeral port), not hard-coded 8765–8776.
 - Use isolated `DATABASE_URL` (runner already temp-isolates).
 - Do not depend on the developer's live `data/dq1_mmo.db`.
 
